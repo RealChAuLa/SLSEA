@@ -70,6 +70,23 @@ export function loadOperationalConfig(env = process.env) {
   return Object.freeze({ staleAfterMinutes: values.STALE_AFTER_MINUTES });
 }
 
+export function loadIngestionConfig(env = process.env) {
+  const values = readConfig(
+    z.object({
+      MAX_POWER_KW: z.coerce.number().positive().finite().default(50),
+    }),
+    env,
+  );
+  return Object.freeze({ maxPowerKw: values.MAX_POWER_KW });
+}
+
+export function loadSimulationConfig(env = process.env) {
+  return {
+    ...loadSeedConfig(env),
+    apiBaseUrl: env.API_BASE_URL || 'http://localhost:3000',
+  };
+}
+
 export function loadMigrationConfig(
   env = process.env,
   { required = true } = {},

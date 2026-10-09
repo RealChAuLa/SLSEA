@@ -1,10 +1,10 @@
 openapi: 3.0.3
 info:
   title: SLSEA Solar Generation Data API
-  version: 0.5.0
+  version: 0.6.0
   description: >
-    I5 Operational reads, reading history, hierarchy, authentication and policy. Health and
-    documentation remain public.
+    I6 Device ingestion, operational reads, reading history, hierarchy, authentication and policy.
+    Health and documentation remain public.
 
     Domain endpoints use /v1 and JWT bearer authentication. Every user operation
 
@@ -35,7 +35,7 @@ tags:
   - name: Hierarchy
     description: Jurisdiction-scoped provinces, districts, substations and installations
   - name: Readings
-    description: Scoped analytical reading history; ingestion is added in I6
+    description: Device ingestion and scoped analytical reading history
   - name: Operational
     description: Latest readings, freshness and installation overview
 paths:
@@ -726,7 +726,8 @@ paths:
         newest first. Last-Modified is newest timestamp on the selected page and is omitted for
         empty pages. Encode + as %2B in query offsets; example: ?from=2026-10-09T00:00:00%2B05:30.'
       parameters:
-        - name: siteId
+        - &a27
+          name: siteId
           in: path
           required: true
           schema:
@@ -745,15 +746,15 @@ paths:
         '200':
           description: Paginated measurement history
           headers:
-            X-Request-Id: &a27
+            X-Request-Id: &a35
               $ref: '#/components/headers/RequestId'
-            ETag: &a28
+            ETag: &a36
               $ref: '#/components/headers/ETag'
-            Vary: &a29
+            Vary: &a37
               $ref: '#/components/headers/Vary'
-            Cache-Control: &a30
+            Cache-Control: &a38
               $ref: '#/components/headers/CacheControl'
-            Last-Modified: &a31
+            Last-Modified: &a39
               $ref: '#/components/headers/LastModified'
             Link:
               $ref: '#/components/headers/Link'
@@ -761,26 +762,83 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ReadingCollection'
-        '304': &a32
+        '304': &a40
           $ref: '#/components/responses/NotModified'
-        '400': &a33
+        '400': &a28
           $ref: '#/components/responses/BadRequest'
-        '401': &a34
+        '401': &a29
           $ref: '#/components/responses/Unauthorized'
-        '403': &a35
+        '403': &a30
           $ref: '#/components/responses/Forbidden'
-        '404': &a36
+        '404': &a31
           $ref: '#/components/responses/NotFound'
-        '405': &a37
+        '405': &a32
           $ref: '#/components/responses/MethodNotAllowed'
-        '406': &a38
+        '406': &a33
           $ref: '#/components/responses/NotAcceptable'
-        '412': &a39
+        '412': &a41
           $ref: '#/components/responses/PreconditionFailed'
-        '415': &a40
+        '415': &a42
           $ref: '#/components/responses/UnsupportedMediaType'
-        '500': &a41
+        '500': &a34
           $ref: '#/components/responses/InternalError'
+    post:
+      operationId: createInstallationReading
+      tags:
+        - Readings
+      summary: Ingest a reading for the authenticated device
+      description:
+        Requires a device token with readings:write scope. User tokens are forbidden. Path site
+        must match the claim, and stored meter must match the token. Unknown queries and body
+        fields, including site_id/meter_id, are rejected. Counter must be at least the nearest
+        earlier counter. Concurrent writes per installation serialize this check. Duplicate
+        meter/timestamp returns 409. Conditional GET headers do not suppress a successful create.
+      parameters:
+        - *a27
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ReadingInput'
+            example:
+              timestamp: 2026-10-09T14:15:00.000Z
+              power_Kw: 2.31
+              cumulative_energy_Kwh: 18234.52
+              voltage: 231.4
+      responses:
+        '201':
+          description: Created reading; canonical UTC timestamp in absolute Location
+          headers:
+            ETag:
+              $ref: '#/components/headers/ETag'
+            Location:
+              description: Absolute canonical reading URI
+              schema:
+                type: string
+                format: uri
+              example: https://api.example.test/v1/installations/1/readings/2026-10-09T14%3A15%3A00.000Z
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/GenerationReading'
+              example:
+                site_id: 1
+                meter_id: MTR-0001
+                timestamp: 2026-10-09T14:15:00.000Z
+                power_Kw: 2.31
+                cumulative_energy_Kwh: 18234.52
+                voltage: 231.4
+        '400': *a28
+        '401': *a29
+        '403': *a30
+        '404': *a31
+        '405': *a32
+        '406': *a33
+        '409':
+          $ref: '#/components/responses/DuplicateReading'
+        '415': *a9
+        '500': *a34
   /v1/installations/{siteId}/readings/{timestamp}:
     get:
       operationId: getReading
@@ -815,25 +873,25 @@ paths:
         '200':
           description: Reading measurement
           headers:
-            X-Request-Id: *a27
-            ETag: *a28
-            Vary: *a29
-            Cache-Control: *a30
-            Last-Modified: *a31
+            X-Request-Id: *a35
+            ETag: *a36
+            Vary: *a37
+            Cache-Control: *a38
+            Last-Modified: *a39
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/GenerationReading'
-        '304': *a32
-        '400': *a33
-        '401': *a34
-        '403': *a35
-        '404': *a36
-        '405': *a37
-        '406': *a38
-        '412': *a39
-        '415': *a40
-        '500': *a41
+        '304': *a40
+        '400': *a28
+        '401': *a29
+        '403': *a30
+        '404': *a31
+        '405': *a32
+        '406': *a33
+        '412': *a41
+        '415': *a42
+        '500': *a34
   /v1/readings:
     get:
       operationId: listReadings
@@ -864,27 +922,27 @@ paths:
         '200':
           description: Paginated measurement history
           headers:
-            X-Request-Id: *a27
-            ETag: *a28
-            Vary: *a29
-            Cache-Control: *a30
-            Last-Modified: *a31
+            X-Request-Id: *a35
+            ETag: *a36
+            Vary: *a37
+            Cache-Control: *a38
+            Last-Modified: *a39
             Link:
               $ref: '#/components/headers/Link'
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/ReadingCollection'
-        '304': *a32
-        '400': *a33
-        '401': *a34
-        '403': *a35
-        '404': *a36
-        '405': *a37
-        '406': *a38
-        '412': *a39
-        '415': *a40
-        '500': *a41
+        '304': *a40
+        '400': *a28
+        '401': *a29
+        '403': *a30
+        '404': *a31
+        '405': *a32
+        '406': *a33
+        '412': *a41
+        '415': *a42
+        '500': *a34
   /v1/installations/{siteId}/last-known-reading:
     get:
       operationId: getLastKnownReading
@@ -912,13 +970,13 @@ paths:
         '200':
           description: Latest measurement including freshness
           headers:
-            X-Request-Id: &a42
+            X-Request-Id: &a43
               $ref: '#/components/headers/RequestId'
-            ETag: &a43
+            ETag: &a44
               $ref: '#/components/headers/ETag'
-            Vary: &a44
+            Vary: &a45
               $ref: '#/components/headers/Vary'
-            Cache-Control: &a45
+            Cache-Control: &a46
               $ref: '#/components/headers/CacheControl'
             Last-Modified:
               $ref: '#/components/headers/LastModified'
@@ -935,25 +993,25 @@ paths:
                 voltage: 231.4
                 age_seconds: 412
                 is_stale: false
-        '304': &a46
+        '304': &a47
           $ref: '#/components/responses/NotModified'
-        '400': &a47
+        '400': &a48
           $ref: '#/components/responses/BadRequest'
-        '401': &a48
+        '401': &a49
           $ref: '#/components/responses/Unauthorized'
-        '403': &a49
+        '403': &a50
           $ref: '#/components/responses/Forbidden'
-        '404': &a50
+        '404': &a51
           $ref: '#/components/responses/NotFound'
-        '405': &a51
+        '405': &a52
           $ref: '#/components/responses/MethodNotAllowed'
-        '406': &a52
+        '406': &a53
           $ref: '#/components/responses/NotAcceptable'
-        '412': &a53
+        '412': &a54
           $ref: '#/components/responses/PreconditionFailed'
-        '415': &a54
+        '415': &a55
           $ref: '#/components/responses/UnsupportedMediaType'
-        '500': &a55
+        '500': &a56
           $ref: '#/components/responses/InternalError'
   /v1/installations/{siteId}/overview:
     get:
@@ -981,10 +1039,10 @@ paths:
         '200':
           description: Composite installation overview
           headers:
-            X-Request-Id: *a42
-            ETag: *a43
-            Vary: *a44
-            Cache-Control: *a45
+            X-Request-Id: *a43
+            ETag: *a44
+            Vary: *a45
+            Cache-Control: *a46
           content:
             application/json:
               schema:
@@ -1016,16 +1074,16 @@ paths:
                   energy_Kwh: 15
                   peak_power_Kw: 4
                   reading_count: 3
-        '304': *a46
-        '400': *a47
-        '401': *a48
-        '403': *a49
-        '404': *a50
-        '405': *a51
-        '406': *a52
-        '412': *a53
-        '415': *a54
-        '500': *a55
+        '304': *a47
+        '400': *a48
+        '401': *a49
+        '403': *a50
+        '404': *a51
+        '405': *a52
+        '406': *a53
+        '412': *a54
+        '415': *a55
+        '500': *a56
 components:
   securitySchemes:
     bearerAuth:
@@ -1293,7 +1351,7 @@ components:
     SolarInstallation:
       type: object
       additionalProperties: false
-      required: &a64
+      required: &a65
         - site_id
         - name
         - meter_id
@@ -1302,15 +1360,15 @@ components:
         - substation_id
       properties:
         site_id: *a23
-        name: &a65
+        name: &a66
           type: string
-        meter_id: &a66
+        meter_id: &a67
           type: string
-        latitude: &a67
+        latitude: &a68
           type: number
           minimum: -90
           maximum: 90
-        longitude: &a68
+        longitude: &a69
           type: number
           minimum: -180
           maximum: 180
@@ -1390,21 +1448,21 @@ components:
         - cumulative_energy_Kwh
         - voltage
       properties:
-        site_id: &a56
+        site_id: &a57
           type: integer
           minimum: 1
-        meter_id: &a57
+        meter_id: &a58
           type: string
-        timestamp: &a58
+        timestamp: &a59
           type: string
           format: date-time
-        power_Kw: &a59
+        power_Kw: &a60
           type: number
           minimum: 0
-        cumulative_energy_Kwh: &a60
+        cumulative_energy_Kwh: &a61
           type: number
           minimum: 0
-        voltage: &a61
+        voltage: &a62
           type: number
           exclusiveMinimum: true
           minimum: 0
@@ -1437,50 +1495,50 @@ components:
         - age_seconds
         - is_stale
       properties:
-        site_id: *a56
-        meter_id: *a57
-        timestamp: *a58
-        power_Kw: *a59
-        cumulative_energy_Kwh: *a60
-        voltage: *a61
-        age_seconds: &a62
+        site_id: *a57
+        meter_id: *a58
+        timestamp: *a59
+        power_Kw: *a60
+        cumulative_energy_Kwh: *a61
+        voltage: *a62
+        age_seconds: &a63
           type: integer
           minimum: 0
-        is_stale: &a63
+        is_stale: &a64
           type: boolean
     LatestReadingSummary:
       type: object
       additionalProperties: false
-      required: &a69
+      required: &a70
         - timestamp
         - power_Kw
         - cumulative_energy_Kwh
         - voltage
         - age_seconds
         - is_stale
-      properties: &a70
-        timestamp: *a58
-        power_Kw: *a59
-        cumulative_energy_Kwh: *a60
-        voltage: *a61
-        age_seconds: *a62
-        is_stale: *a63
+      properties: &a71
+        timestamp: *a59
+        power_Kw: *a60
+        cumulative_energy_Kwh: *a61
+        voltage: *a62
+        age_seconds: *a63
+        is_stale: *a64
     SolarInstallationWithLatest:
       type: object
       additionalProperties: false
-      required: *a64
+      required: *a65
       properties:
         site_id: *a23
-        name: *a65
-        meter_id: *a66
-        latitude: *a67
-        longitude: *a68
+        name: *a66
+        meter_id: *a67
+        latitude: *a68
+        longitude: *a69
         substation_id: *a23
-        last_known_reading: &a71
+        last_known_reading: &a72
           type: object
           additionalProperties: false
-          required: *a69
-          properties: *a70
+          required: *a70
+          properties: *a71
           nullable: true
     InstallationOverview:
       type: object
@@ -1499,10 +1557,10 @@ components:
         - today
       properties:
         site_id: *a23
-        name: *a65
-        meter_id: *a66
-        latitude: *a67
-        longitude: *a68
+        name: *a66
+        meter_id: *a67
+        latitude: *a68
+        longitude: *a69
         substation_id: *a23
         substation:
           type: object
@@ -1530,7 +1588,7 @@ components:
               type: string
         province:
           $ref: '#/components/schemas/Province'
-        last_known_reading: *a71
+        last_known_reading: *a72
         today:
           type: object
           additionalProperties: false
@@ -1548,6 +1606,32 @@ components:
             reading_count:
               type: integer
               minimum: 0
+    ReadingInput:
+      type: object
+      additionalProperties: false
+      required:
+        - timestamp
+        - power_Kw
+        - cumulative_energy_Kwh
+        - voltage
+      properties:
+        timestamp:
+          type: string
+          format: date-time
+          description: Z or offset; UTC storage. At most 5 minutes ahead, at most 30 days old.
+        power_Kw:
+          type: number
+          minimum: 0
+          maximum: 50
+          description: Maximum configured by MAX_POWER_KW (default 50).
+        cumulative_energy_Kwh:
+          type: number
+          minimum: 0
+          description: Must not be below the nearest earlier reading.
+        voltage:
+          type: number
+          minimum: 150
+          maximum: 300
   parameters:
     Page:
       name: page
@@ -1685,64 +1769,64 @@ components:
       description:
         Malformed JSON, invalid input, or body larger than 10 kb (400 VALIDATION_FAILED for
         size; contract has no 413)
-      headers: &a72
+      headers: &a73
         X-Request-Id:
           $ref: '#/components/headers/RequestId'
-      content: &a73
+      content: &a74
         application/json:
           schema:
             $ref: '#/components/schemas/Error'
     Unauthorized:
       description: Missing, invalid, expired, or revoked bearer token
       headers:
-        <<: *a72
+        <<: *a73
         WWW-Authenticate:
           schema:
             type: string
           example: Bearer
-      content: *a73
+      content: *a74
     Forbidden:
       description: Principal lacks the required scope or jurisdiction
-      headers: *a72
-      content: *a73
+      headers: *a73
+      content: *a74
     NotFound:
       description: Unknown resource or route
-      headers: *a72
-      content: *a73
+      headers: *a73
+      content: *a74
     MethodNotAllowed:
       description: Method is unsupported on a known URI
       headers:
-        <<: *a72
+        <<: *a73
         Allow:
           description: Comma-separated supported methods
           schema:
             type: string
           example: GET
-      content: *a73
+      content: *a74
     NotAcceptable:
       description: Accept does not permit the offered representation (JSON, or HTML for /docs)
-      headers: *a72
-      content: *a73
+      headers: *a73
+      content: *a74
     Conflict:
       description: Duplicate reading
-      headers: *a72
-      content: *a73
+      headers: *a73
+      content: *a74
     PreconditionFailed:
       description: The GET If-Match condition fails after authentication and authorization (strong comparison).
-      headers: *a72
-      content: *a73
+      headers: *a73
+      content: *a74
     UnsupportedMediaType:
       description: A write requires application/json, or the JSON charset or encoding is unsupported
-      headers: *a72
-      content: *a73
+      headers: *a73
+      content: *a74
     RateLimited:
       description: Too many requests
-      headers: *a72
-      content: *a73
+      headers: *a73
+      content: *a74
     InternalError:
       description: Unhandled server fault; generic message without implementation details
-      headers: *a72
-      content: *a73
+      headers: *a73
+      content: *a74
     NotModified:
       description: Current representation; empty response body. Access checks run before ETag comparison.
       headers:
@@ -1754,3 +1838,16 @@ components:
           $ref: '#/components/headers/Vary'
         Last-Modified:
           $ref: '#/components/headers/LastModified'
+    DuplicateReading:
+      description: Duplicate meter/timestamp; no additional row inserted
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+          example:
+            error:
+              code: DUPLICATE_READING
+              message: The reading already exists.
+              status: 409
+              details: []
+              request_id: 0b89c6bd-3d8c-408a-a363-a49ba81b544b

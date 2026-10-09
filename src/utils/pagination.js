@@ -31,7 +31,7 @@ export function parsePagination(
     throw invalidQuery('page', 'offset exceeds the supported range');
   return { page, pageSize, skip };
 }
-function baseUrl(req) {
+export function baseUrl(req) {
   const host = (req.get('X-Forwarded-Host') || req.get('Host') || '')
     .split(',')[0]
     .trim();

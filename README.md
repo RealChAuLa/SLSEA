@@ -6,14 +6,14 @@ principals for devices and staff, and Vercel hosting. [project.md](project.md)
 defines the contract; [implementation_plan.md](implementation_plan.md) defines
 the increments.
 
-**Current increment: I5 Operational reads, verified.**
+**Current increment: I6 Device ingestion, verified; I7 is authorized next.**
 I2 authentication/policy (58a0bc0) and I3 hierarchy reads (1874853) are complete.
 I4 adds the three history GETs, deterministic seven-day reading seed and
 Last-Modified/If-Modified-Since. I5 adds last-known readings, installation
-overviews, reporting filters and latest-reading list includes. All 128 tests
-passed across 18 suites; build, lint and OpenAPI validation passed. The full supplied Neon database holds 240
+overviews, reporting filters and latest-reading list includes. All 149 tests
+passed across 20 suites; build, lint and OpenAPI validation passed. The full supplied Neon database holds 240
 installations and 160,584 readings, with 240 verified device credentials.
-No Docker/local database was used. I6 has not started.
+No Docker/local database was used. I8 has not started.
 
 Log in with any seeded email listed in Swagger and the demo password
 `Solar#Demo2026`. Send the returned `access_token` as `Authorization: Bearer ...`
@@ -86,7 +86,7 @@ settings.
 | `seed`        | Replace reference data/history and generate device tokens      |
 | `seed:tokens` | Regenerate device tokens without modifying database rows       |
 | `seed:extend` | Explicit I7 placeholder                                        |
-| `simulate`    | Explicit I6 placeholder                                        |
+| `simulate`    | Post generated readings over HTTP using private device tokens  |
 
 Application, scripts, tests, and Prisma config use plain JavaScript ESM
 (`type: module`). Prisma CLI/client/PostgreSQL adapter are pinned together at
@@ -146,8 +146,8 @@ No `neon login`, global skills/MCP installation,
 link, or `neon deploy` is required for this Prisma implementation or was executed.
 Project ID reference: `summer-thunder-32230894`.
 
-`.env.example` also reserves `MAX_POWER_KW` and
-`API_BASE_URL` for later increments.
+MAX_POWER_KW is active (positive finite number, default 50). API_BASE_URL is the
+simulator HTTP(S) origin (default http://localhost:3000).
 
 ## I1 owner database commands
 
@@ -301,7 +301,7 @@ for example ?from=2026-10-09T00:00:00%2B05:30.
 Last-Modified is the newest timestamp on the selected page and is absent on empty
 pages. If-Modified-Since uses HTTP dates, follows If-Match, and is ignored when
 If-None-Match is supplied. Authentication and jurisdiction are always checked
-first. POST ingestion and seed:extend remain later-increment placeholders.
+first. Device POST ingestion is available; seed:extend follows in I7.
 
 ## Operational reads (I5)
 
@@ -329,4 +329,33 @@ token with `generation:read` and enforce jurisdiction before conditional respons
 
 The restored full seed has 238 reporting installations, stale fixture 239 and
 empty fixture 240. Seeded freshness ages naturally until data is extended;
-`seed:extend` is implemented in I7. I6 has not started.
+`seed:extend` is implemented in I7. I8 has not started.
+
+## Device ingestion and simulation (I6)
+
+POST /v1/installations/{siteId}/readings requires that installation's device token
+with readings:write. User tokens cannot ingest; device tokens cannot read. Send
+only timestamp, power_Kw, cumulative_energy_Kwh and voltage as JSON. Timestamps
+require Z or an offset, at most 5 minutes ahead and 30 days old. Power must be
+between zero and MAX_POWER_KW, cumulative energy nonnegative, and voltage between
+150 and 300. Extra body fields and query parameters are rejected. The counter
+must not be below the nearest earlier reading. Same-installation writes serialize
+that check; the database's composite key protects retries.
+
+Success returns 201, the UTC reading, its ETag and an absolute canonical Location.
+Duplicate meter/timestamp returns 409 DUPLICATE_READING. Conditional GET headers
+do not change the create response. The collection permits GET/POST and advertises
+both in Allow for unsupported methods.
+
+With the server running and ignored private device credentials available:
+
+```sh
+npm run simulate -- --site 1 --count 4
+npm run simulate -- --all --base-url http://localhost:3000
+```
+
+The simulator reads the latest counter through DIRECT_URL, uses the shared
+generator and posts over HTTP. It sends at most the requested number of due
+quarter-hour readings, respecting the future-time limit. Current sites are
+reported as up_to_date; empty sites start at the current quarter-hour boundary.
+It prints site/status/Location and totals, never tokens or response diagnostics.

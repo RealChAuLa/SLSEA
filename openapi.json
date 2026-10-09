@@ -2,8 +2,8 @@
   "openapi": "3.0.3",
   "info": {
     "title": "SLSEA Solar Generation Data API",
-    "version": "0.5.0",
-    "description": "I5 Operational reads, reading history, hierarchy, authentication and policy. Health and documentation remain public.\nDomain endpoints use /v1 and JWT bearer authentication. Every user operation\nrequires its documented scope; all errors use the Error schema.\nDemo password: Solar#Demo2026 (all seven seeded users).\nDemo logins: national.operator@slsea.lk, national.analyst@slsea.lk,\nwestern.province@slsea.lk, central.province@slsea.lk,\ncolombo.district@slsea.lk, gampaha.district@slsea.lk, kandy.district@slsea.lk.\n",
+    "version": "0.6.0",
+    "description": "I6 Device ingestion, operational reads, reading history, hierarchy, authentication and policy. Health and documentation remain public.\nDomain endpoints use /v1 and JWT bearer authentication. Every user operation\nrequires its documented scope; all errors use the Error schema.\nDemo password: Solar#Demo2026 (all seven seeded users).\nDemo logins: national.operator@slsea.lk, national.analyst@slsea.lk,\nwestern.province@slsea.lk, central.province@slsea.lk,\ncolombo.district@slsea.lk, gampaha.district@slsea.lk, kandy.district@slsea.lk.\n",
     "license": {
       "name": "Private project; all rights reserved",
       "url": "https://www.energy.gov.lk/"
@@ -39,7 +39,7 @@
     },
     {
       "name": "Readings",
-      "description": "Scoped analytical reading history; ingestion is added in I6"
+      "description": "Device ingestion and scoped analytical reading history"
     },
     {
       "name": "Operational",
@@ -1329,6 +1329,102 @@
           },
           "412": {
             "$ref": "#/components/responses/PreconditionFailed"
+          },
+          "415": {
+            "$ref": "#/components/responses/UnsupportedMediaType"
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalError"
+          }
+        }
+      },
+      "post": {
+        "operationId": "createInstallationReading",
+        "tags": [
+          "Readings"
+        ],
+        "summary": "Ingest a reading for the authenticated device",
+        "description": "Requires a device token with readings:write scope. User tokens are forbidden. Path site must match the claim, and stored meter must match the token. Unknown queries and body fields, including site_id/meter_id, are rejected. Counter must be at least the nearest earlier counter. Concurrent writes per installation serialize this check. Duplicate meter/timestamp returns 409. Conditional GET headers do not suppress a successful create.",
+        "parameters": [
+          {
+            "name": "siteId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 2147483647
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ReadingInput"
+              },
+              "example": {
+                "timestamp": "2026-10-09T14:15:00.000Z",
+                "power_Kw": 2.31,
+                "cumulative_energy_Kwh": 18234.52,
+                "voltage": 231.4
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Created reading; canonical UTC timestamp in absolute Location",
+            "headers": {
+              "ETag": {
+                "$ref": "#/components/headers/ETag"
+              },
+              "Location": {
+                "description": "Absolute canonical reading URI",
+                "schema": {
+                  "type": "string",
+                  "format": "uri"
+                },
+                "example": "https://api.example.test/v1/installations/1/readings/2026-10-09T14%3A15%3A00.000Z"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GenerationReading"
+                },
+                "example": {
+                  "site_id": 1,
+                  "meter_id": "MTR-0001",
+                  "timestamp": "2026-10-09T14:15:00.000Z",
+                  "power_Kw": 2.31,
+                  "cumulative_energy_Kwh": 18234.52,
+                  "voltage": 231.4
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "405": {
+            "$ref": "#/components/responses/MethodNotAllowed"
+          },
+          "406": {
+            "$ref": "#/components/responses/NotAcceptable"
+          },
+          "409": {
+            "$ref": "#/components/responses/DuplicateReading"
           },
           "415": {
             "$ref": "#/components/responses/UnsupportedMediaType"
@@ -2633,6 +2729,39 @@
             }
           }
         }
+      },
+      "ReadingInput": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "timestamp",
+          "power_Kw",
+          "cumulative_energy_Kwh",
+          "voltage"
+        ],
+        "properties": {
+          "timestamp": {
+            "type": "string",
+            "format": "date-time",
+            "description": "Z or offset; UTC storage. At most 5 minutes ahead, at most 30 days old."
+          },
+          "power_Kw": {
+            "type": "number",
+            "minimum": 0,
+            "maximum": 50,
+            "description": "Maximum configured by MAX_POWER_KW (default 50)."
+          },
+          "cumulative_energy_Kwh": {
+            "type": "number",
+            "minimum": 0,
+            "description": "Must not be below the nearest earlier reading."
+          },
+          "voltage": {
+            "type": "number",
+            "minimum": 150,
+            "maximum": 300
+          }
+        }
       }
     },
     "parameters": {
@@ -2974,6 +3103,25 @@
           },
           "Last-Modified": {
             "$ref": "#/components/headers/LastModified"
+          }
+        }
+      },
+      "DuplicateReading": {
+        "description": "Duplicate meter/timestamp; no additional row inserted",
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/Error"
+            },
+            "example": {
+              "error": {
+                "code": "DUPLICATE_READING",
+                "message": "The reading already exists.",
+                "status": 409,
+                "details": [],
+                "request_id": "0b89c6bd-3d8c-408a-a363-a49ba81b544b"
+              }
+            }
           }
         }
       }

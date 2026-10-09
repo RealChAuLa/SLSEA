@@ -266,7 +266,7 @@ test('history conditionals prioritize ETags and never bypass authentication/juri
     'FORBIDDEN_JURISDICTION',
   );
 });
-test('empty fixture has empty history and every history path enforces device denial and GET-only', async () => {
+test('empty history, device GET denial and unsupported history methods are enforced', async () => {
   const empty = await get(
     `/v1/installations/${fixture.dataset.fixtures.emptySiteId}/readings`,
   ).expect(200);
@@ -283,7 +283,7 @@ test('empty fixture has empty history and every history path enforces device den
       'FORBIDDEN_SCOPE',
     );
     for (const method of [
-      'post',
+      ...(url === path() ? [] : ['post']),
       'put',
       'patch',
       'delete',
@@ -296,7 +296,7 @@ test('empty fixture has empty history and every history path enforces device den
         'application/json',
       );
       expect(res.status).toBe(405);
-      expect(res.headers.allow).toBe('GET');
+      expect(res.headers.allow).toBe(url === path() ? 'GET, POST' : 'GET');
     }
   }
 });

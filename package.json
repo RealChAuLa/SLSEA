@@ -23,7 +23,7 @@
     "seed": "node prisma/seed.js",
     "seed:tokens": "node prisma/seed-tokens.js",
     "seed:extend": "node scripts/not-implemented.js seed:extend I7",
-    "simulate": "node scripts/not-implemented.js simulate I6"
+    "simulate": "node scripts/simulate.js"
   },
   "jest": {
     "testEnvironment": "node",

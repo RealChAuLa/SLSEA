@@ -266,17 +266,19 @@ flowchart TD
 
 ## I6: Device ingestion
 
+**Status (2026-10-09):** Implemented and verified: 149 tests across 20 suites, build, lint and OpenAPI checks passed on supplied Neon. Strict device ingestion, canonical 201 responses, concurrent retry handling and real HTTP simulation are covered. Full seed restored after fixtures. Completion tag: i6-device-ingestion. I7 is authorized next; I8 has not started. Remote CI and push are unverified.
+
 **Goal:** the write path: devices push readings; the write/read split is enforced end to end.
 **Builds on:** I5. **Refs:** §4.6, §5.1–5.2, §5.4, §6.7.
 
 **Tasks**
-- [ ] Zod strict body schema `{ timestamp, power_Kw, cumulative_energy_Kwh, voltage }`: `timestamp` ISO-8601 with `Z` or offset (stored UTC); not > now + 5 min; not older than 30 days; `0 ≤ power_Kw ≤ MAX_POWER_KW`; `cumulative_energy_Kwh ≥ 0`; `150 ≤ voltage ≤ 300`. Any other field (including `meter_id`, `site_id`) → `400 VALIDATION_FAILED`.
-- [ ] `POST /v1/installations/{siteId}/readings` pipeline: authenticate → `requireDeviceToken` (scope `readings:write`) → validate path → **site check** (`claims.site_id === siteId`, else `403 FORBIDDEN_INSTALLATION`) → load installation (stored `meter_id` must equal `claims.meter_id`, else `403 FORBIDDEN_INSTALLATION`; unknown → `404`) → validate body → insert with `meter_id` taken from the installation.
-- [ ] Duplicate `(meter_id, timestamp)` (Prisma unique violation) → `409 DUPLICATE_READING`.
-- [ ] Response `201`, `Location: https://<host>/v1/installations/{siteId}/readings/{timestamp}` (canonical UTC ISO, URL-encoded), body = created reading (same serializer), `ETag`.
-- [ ] Extra validation: reject a `cumulative_energy_Kwh` lower than the nearest earlier reading of that meter (`400`, with a `details` entry).
-- [ ] User tokens on this endpoint → `403 FORBIDDEN_SCOPE` (including national users). `405` for other methods on the collection path remains for `PUT`/`DELETE`/`PATCH`.
-- [ ] `scripts/simulate.js` (`npm run simulate -- --site <id>` or `--all`, optional `--count`, `--base-url`): reads `seed-output/device-tokens.json`; for each site reads the latest `cumulative_energy_Kwh` from the database (local-only, via `DIRECT_URL`) purely to continue the counter, generates the next 15-minute reading with the shared generator, and **posts it over HTTP** with the site's device token; prints status and `Location`. For the empty fixture it starts from `startEnergy(site_id)`.
+- [x] Zod strict body schema `{ timestamp, power_Kw, cumulative_energy_Kwh, voltage }`: `timestamp` ISO-8601 with `Z` or offset (stored UTC); not > now + 5 min; not older than 30 days; `0 ≤ power_Kw ≤ MAX_POWER_KW`; `cumulative_energy_Kwh ≥ 0`; `150 ≤ voltage ≤ 300`. Any other field (including `meter_id`, `site_id`) → `400 VALIDATION_FAILED`.
+- [x] `POST /v1/installations/{siteId}/readings` pipeline: authenticate → `requireDeviceToken` (scope `readings:write`) → validate path → **site check** (`claims.site_id === siteId`, else `403 FORBIDDEN_INSTALLATION`) → load installation (stored `meter_id` must equal `claims.meter_id`, else `403 FORBIDDEN_INSTALLATION`; unknown → `404`) → validate body → insert with `meter_id` taken from the installation.
+- [x] Duplicate `(meter_id, timestamp)` (Prisma unique violation) → `409 DUPLICATE_READING`.
+- [x] Response `201`, `Location: https://<host>/v1/installations/{siteId}/readings/{timestamp}` (canonical UTC ISO, URL-encoded), body = created reading (same serializer), `ETag`.
+- [x] Extra validation: reject a `cumulative_energy_Kwh` lower than the nearest earlier reading of that meter (`400`, with a `details` entry).
+- [x] User tokens on this endpoint → `403 FORBIDDEN_SCOPE` (including national users). `405` for other methods on the collection path remains for `PUT`/`DELETE`/`PATCH`.
+- [x] `scripts/simulate.js` (`npm run simulate -- --site <id>` or `--all`, optional `--count`, `--base-url`): reads `seed-output/device-tokens.json`; for each site reads the latest `cumulative_energy_Kwh` from the database (local-only, via `DIRECT_URL`) purely to continue the counter, generates the next 15-minute reading with the shared generator, and **posts it over HTTP** with the site's device token; prints status and `Location`. For the empty fixture it starts from `startEnergy(site_id)`.
 
 **OpenAPI:** the POST with request/response examples, `201` `Location`, `401`/`403`/`400`/`409`/`415`.
 

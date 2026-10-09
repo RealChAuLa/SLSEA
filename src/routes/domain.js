@@ -1,5 +1,9 @@
 import { authenticate } from '../middleware/auth.js';
-import { requireScope, requireUserToken } from '../middleware/scopes.js';
+import {
+  requireScope,
+  requireUserToken,
+  requireDeviceToken,
+} from '../middleware/scopes.js';
 import { methodNotAllowed } from '../middleware/method-not-allowed.js';
 import { issueToken } from '../services/auth.js';
 import { serialize } from '../serializers/index.js';
@@ -97,6 +101,7 @@ export function registerDomainRoutes(
   );
   collection('/v1/installations', 'installation', { allowFilters: true });
   atomic('/v1/installations/:siteId', 'installation', 'siteId');
-  registerReadingRoutes(app, { getDb, reads, clock });
+  const writes = [auth, requireDeviceToken, requireScope('readings:write')];
+  registerReadingRoutes(app, { getDb, reads, writes, clock });
   registerOperationalRoutes(app, { getDb, reads, clock });
 }
