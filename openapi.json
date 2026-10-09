@@ -2,8 +2,8 @@
   "openapi": "3.0.3",
   "info": {
     "title": "SLSEA Solar Generation Data API",
-    "version": "0.0.0",
-    "description": "I0 Foundations: public health and documentation endpoints only.\nDomain endpoints will use /v1 and JWT bearer authentication in later increments.\nRequired scope for every operation currently present: none (public).\nErrors always use the Error schema, including a UUID request_id.\nThe /docs HTML surface is the sole exception to the JSON representation rule.\nDemo logins become available with the I1 seed and I2 authentication increments.\n",
+    "version": "0.2.0",
+    "description": "I2 Authentication and policy. Health and documentation remain public.\nDomain endpoints use /v1 and JWT bearer authentication. Every user operation\nrequires its documented scope; all errors use the Error schema.\nDemo password: Solar#Demo2026 (all seven seeded users).\nDemo logins: national.operator@slsea.lk, national.analyst@slsea.lk,\nwestern.province@slsea.lk, central.province@slsea.lk,\ncolombo.district@slsea.lk, gampaha.district@slsea.lk, kandy.district@slsea.lk.\n",
     "license": {
       "name": "Private project; all rights reserved",
       "url": "https://www.energy.gov.lk/"
@@ -28,6 +28,10 @@
     {
       "name": "Documentation",
       "description": "Public API documentation"
+    },
+    {
+      "name": "Authentication",
+      "description": "User login and own profile"
     }
   ],
   "paths": {
@@ -202,6 +206,130 @@
           },
           "400": {
             "$ref": "#/components/responses/BadRequest"
+          },
+          "405": {
+            "$ref": "#/components/responses/MethodNotAllowed"
+          },
+          "406": {
+            "$ref": "#/components/responses/NotAcceptable"
+          },
+          "415": {
+            "$ref": "#/components/responses/UnsupportedMediaType"
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalError"
+          }
+        }
+      }
+    },
+    "/v1/auth/tokens": {
+      "post": {
+        "operationId": "issueUserToken",
+        "tags": [
+          "Authentication"
+        ],
+        "summary": "Log in as a seeded SLSEA user",
+        "description": "Public; requires no scope. Strict email/password body; lowercases email. Unknown email and wrong password return the same 401. Token responses use Cache-Control: no-store.",
+        "security": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/Login"
+              },
+              "example": {
+                "email": "national.operator@slsea.lk",
+                "password": "Solar#Demo2026"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "User bearer token",
+            "headers": {
+              "X-Request-Id": {
+                "$ref": "#/components/headers/RequestId"
+              },
+              "Cache-Control": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Token"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "405": {
+            "$ref": "#/components/responses/MethodNotAllowed"
+          },
+          "406": {
+            "$ref": "#/components/responses/NotAcceptable"
+          },
+          "415": {
+            "$ref": "#/components/responses/UnsupportedMediaType"
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalError"
+          }
+        }
+      }
+    },
+    "/v1/users/me": {
+      "get": {
+        "operationId": "getOwnProfile",
+        "tags": [
+          "Authentication"
+        ],
+        "summary": "Read the current user profile",
+        "description": "Requires a user token and account:manage scope. Password-version revocation is checked before returning public profile fields. No query parameters.",
+        "responses": {
+          "200": {
+            "description": "Current user profile",
+            "headers": {
+              "X-Request-Id": {
+                "$ref": "#/components/headers/RequestId"
+              },
+              "Cache-Control": {
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "ETag": {
+                "$ref": "#/components/headers/ETag"
+              },
+              "Vary": {
+                "$ref": "#/components/headers/Vary"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/User"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
           },
           "405": {
             "$ref": "#/components/responses/MethodNotAllowed"
@@ -419,6 +547,95 @@
           "last": {
             "type": "string",
             "format": "uri"
+          }
+        }
+      },
+      "Login": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "email",
+          "password"
+        ],
+        "properties": {
+          "email": {
+            "type": "string",
+            "format": "email",
+            "maxLength": 254
+          },
+          "password": {
+            "type": "string",
+            "format": "password",
+            "minLength": 1,
+            "description": "Maximum 72 UTF-8 bytes."
+          }
+        }
+      },
+      "Token": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "access_token",
+          "token_type",
+          "expires_in",
+          "scope"
+        ],
+        "properties": {
+          "access_token": {
+            "type": "string"
+          },
+          "token_type": {
+            "type": "string",
+            "enum": [
+              "Bearer"
+            ]
+          },
+          "expires_in": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "scope": {
+            "type": "string",
+            "enum": [
+              "generation:read account:manage"
+            ]
+          }
+        }
+      },
+      "User": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "user_id",
+          "name",
+          "email",
+          "jurisdiction_type",
+          "jurisdiction_id"
+        ],
+        "properties": {
+          "user_id": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "name": {
+            "type": "string"
+          },
+          "email": {
+            "type": "string",
+            "format": "email"
+          },
+          "jurisdiction_type": {
+            "type": "string",
+            "enum": [
+              "national",
+              "provincial",
+              "district"
+            ]
+          },
+          "jurisdiction_id": {
+            "type": "integer",
+            "nullable": true,
+            "minimum": 1
           }
         }
       }

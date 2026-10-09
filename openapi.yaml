@@ -1,14 +1,15 @@
 openapi: 3.0.3
 info:
   title: SLSEA Solar Generation Data API
-  version: 0.0.0
+  version: 0.2.0
   description: |
-    I0 Foundations: public health and documentation endpoints only.
-    Domain endpoints will use /v1 and JWT bearer authentication in later increments.
-    Required scope for every operation currently present: none (public).
-    Errors always use the Error schema, including a UUID request_id.
-    The /docs HTML surface is the sole exception to the JSON representation rule.
-    Demo logins become available with the I1 seed and I2 authentication increments.
+    I2 Authentication and policy. Health and documentation remain public.
+    Domain endpoints use /v1 and JWT bearer authentication. Every user operation
+    requires its documented scope; all errors use the Error schema.
+    Demo password: Solar#Demo2026 (all seven seeded users).
+    Demo logins: national.operator@slsea.lk, national.analyst@slsea.lk,
+    western.province@slsea.lk, central.province@slsea.lk,
+    colombo.district@slsea.lk, gampaha.district@slsea.lk, kandy.district@slsea.lk.
   license:
     name: Private project; all rights reserved
     url: https://www.energy.gov.lk/
@@ -22,11 +23,14 @@ tags:
     description: Public operational health checks
   - name: Documentation
     description: Public API documentation
+  - name: Authentication
+    description: User login and own profile
 paths:
   /health:
     get:
       operationId: getHealth
-      tags: [Operations]
+      tags:
+        - Operations
       summary: Check application liveness
       description: Public; requires no scope. Does not check database connectivity in I0.
       security: []
@@ -45,12 +49,15 @@ paths:
               schema:
                 type: object
                 additionalProperties: false
-                required: [status]
+                required:
+                  - status
                 properties:
                   status:
                     type: string
-                    enum: [ok]
-              example: { status: ok }
+                    enum:
+                      - ok
+              example:
+                status: ok
         '400':
           $ref: '#/components/responses/BadRequest'
         '405':
@@ -64,7 +71,8 @@ paths:
   /openapi.json:
     get:
       operationId: getOpenApi
-      tags: [Documentation]
+      tags:
+        - Documentation
       summary: Fetch the generated OpenAPI specification
       description: Public; requires no scope. Generated from openapi.yaml during build.
       security: []
@@ -82,7 +90,10 @@ paths:
             application/json:
               schema:
                 type: object
-                required: [openapi, info, paths]
+                required:
+                  - openapi
+                  - info
+                  - paths
                 properties:
                   openapi:
                     type: string
@@ -92,7 +103,9 @@ paths:
                     type: object
               example:
                 openapi: 3.0.3
-                info: { title: SLSEA Solar Generation Data API, version: 0.0.0 }
+                info:
+                  title: SLSEA Solar Generation Data API
+                  version: 0.0.0
                 paths: {}
         '400':
           $ref: '#/components/responses/BadRequest'
@@ -107,7 +120,8 @@ paths:
   /docs:
     get:
       operationId: getDocs
-      tags: [Documentation]
+      tags:
+        - Documentation
       summary: Open Swagger UI
       description: Public HTML documentation; requires no scope. Supports JWT Authorize.
       security: []
@@ -125,7 +139,7 @@ paths:
             text/html:
               schema:
                 type: string
-              example: '<!doctype html><html lang="en"><title>SLSEA API docs</title></html>'
+              example: <!doctype html><html lang="en"><title>SLSEA API docs</title></html>
         '400':
           $ref: '#/components/responses/BadRequest'
         '405':
@@ -136,6 +150,81 @@ paths:
           $ref: '#/components/responses/UnsupportedMediaType'
         '500':
           $ref: '#/components/responses/InternalError'
+  /v1/auth/tokens:
+    post:
+      operationId: issueUserToken
+      tags:
+        - Authentication
+      summary: Log in as a seeded SLSEA user
+      description:
+        'Public; requires no scope. Strict email/password body; lowercases email. Unknown email
+        and wrong password return the same 401. Token responses use Cache-Control: no-store.'
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Login'
+            example:
+              email: national.operator@slsea.lk
+              password: Solar#Demo2026
+      responses:
+        '200':
+          description: User bearer token
+          headers:
+            X-Request-Id: &a1
+              $ref: '#/components/headers/RequestId'
+            Cache-Control: &a2
+              schema:
+                type: string
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Token'
+        '400': &a3
+          $ref: '#/components/responses/BadRequest'
+        '401': &a4
+          $ref: '#/components/responses/Unauthorized'
+        '405': &a5
+          $ref: '#/components/responses/MethodNotAllowed'
+        '406': &a6
+          $ref: '#/components/responses/NotAcceptable'
+        '415': &a7
+          $ref: '#/components/responses/UnsupportedMediaType'
+        '500': &a8
+          $ref: '#/components/responses/InternalError'
+  /v1/users/me:
+    get:
+      operationId: getOwnProfile
+      tags:
+        - Authentication
+      summary: Read the current user profile
+      description:
+        Requires a user token and account:manage scope. Password-version revocation is checked
+        before returning public profile fields. No query parameters.
+      responses:
+        '200':
+          description: Current user profile
+          headers:
+            X-Request-Id: *a1
+            Cache-Control: *a2
+            ETag:
+              $ref: '#/components/headers/ETag'
+            Vary:
+              $ref: '#/components/headers/Vary'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/User'
+        '400': *a3
+        '401': *a4
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '405': *a5
+        '406': *a6
+        '415': *a7
+        '500': *a8
 components:
   securitySchemes:
     bearerAuth:
@@ -145,71 +234,93 @@ components:
   headers:
     RequestId:
       description: Server-generated UUID shared by the response and logs
-      schema: { type: string, format: uuid }
+      schema:
+        type: string
+        format: uuid
       example: b6f1c0a2-0f5e-4d3a-9d6c-1d2a3b4c5d6e
     ETag:
       description: Hash of the serialized successful GET representation; conditional evaluation arrives in I3
-      schema: { type: string }
+      schema:
+        type: string
       example: '"representation-hash"'
     Vary:
       description: GET responses vary by Accept and Authorization, and Origin for CORS
-      schema: { type: string }
+      schema:
+        type: string
       example: Accept, Authorization, Origin
     Location:
       description: Absolute URI of a newly created resource (introduced in I6)
-      schema: { type: string, format: uri }
+      schema:
+        type: string
+        format: uri
     LastModified:
       description: Timestamp of the source data (introduced in I4)
-      schema: { type: string }
+      schema:
+        type: string
     Link:
       description: RFC 8288 pagination links (introduced in I3)
-      schema: { type: string }
+      schema:
+        type: string
   schemas:
     Error:
       type: object
       additionalProperties: false
-      required: [error]
+      required:
+        - error
       properties:
         error:
           type: object
           additionalProperties: false
-          required: [code, message, status, details, request_id]
+          required:
+            - code
+            - message
+            - status
+            - details
+            - request_id
           properties:
             code:
               type: string
               enum:
-                [
-                  VALIDATION_FAILED,
-                  MALFORMED_JSON,
-                  INVALID_QUERY,
-                  UNAUTHENTICATED,
-                  TOKEN_EXPIRED,
-                  TOKEN_REVOKED,
-                  FORBIDDEN_SCOPE,
-                  FORBIDDEN_JURISDICTION,
-                  FORBIDDEN_INSTALLATION,
-                  CURRENT_PASSWORD_INCORRECT,
-                  NOT_FOUND,
-                  METHOD_NOT_ALLOWED,
-                  NOT_ACCEPTABLE,
-                  DUPLICATE_READING,
-                  PRECONDITION_FAILED,
-                  UNSUPPORTED_MEDIA_TYPE,
-                  RATE_LIMITED,
-                  INTERNAL_ERROR,
-                ]
-            message: { type: string }
-            status: { type: integer, minimum: 400, maximum: 599 }
+                - VALIDATION_FAILED
+                - MALFORMED_JSON
+                - INVALID_QUERY
+                - UNAUTHENTICATED
+                - TOKEN_EXPIRED
+                - TOKEN_REVOKED
+                - FORBIDDEN_SCOPE
+                - FORBIDDEN_JURISDICTION
+                - FORBIDDEN_INSTALLATION
+                - CURRENT_PASSWORD_INCORRECT
+                - NOT_FOUND
+                - METHOD_NOT_ALLOWED
+                - NOT_ACCEPTABLE
+                - DUPLICATE_READING
+                - PRECONDITION_FAILED
+                - UNSUPPORTED_MEDIA_TYPE
+                - RATE_LIMITED
+                - INTERNAL_ERROR
+            message:
+              type: string
+            status:
+              type: integer
+              minimum: 400
+              maximum: 599
             details:
               type: array
               items:
                 type: object
                 additionalProperties: false
-                required: [field, issue]
+                required:
+                  - field
+                  - issue
                 properties:
-                  field: { type: string }
-                  issue: { type: string }
-            request_id: { type: string, format: uuid }
+                  field:
+                    type: string
+                  issue:
+                    type: string
+            request_id:
+              type: string
+              format: uuid
       example:
         error:
           code: NOT_FOUND
@@ -220,121 +331,243 @@ components:
     Pagination:
       type: object
       additionalProperties: false
-      required: [page, page_size, total_count, total_pages]
+      required:
+        - page
+        - page_size
+        - total_count
+        - total_pages
       properties:
-        page: { type: integer, minimum: 1, default: 1 }
-        page_size: { type: integer, minimum: 1, maximum: 500, default: 50 }
-        total_count: { type: integer, minimum: 0 }
-        total_pages: { type: integer, minimum: 0 }
+        page:
+          type: integer
+          minimum: 1
+          default: 1
+        page_size:
+          type: integer
+          minimum: 1
+          maximum: 500
+          default: 50
+        total_count:
+          type: integer
+          minimum: 0
+        total_pages:
+          type: integer
+          minimum: 0
     Links:
       type: object
       additionalProperties: false
-      required: [self, first, prev, next, last]
+      required:
+        - self
+        - first
+        - prev
+        - next
+        - last
       properties:
-        self: { type: string, format: uri }
-        first: { type: string, format: uri }
-        prev: { type: string, format: uri, nullable: true }
-        next: { type: string, format: uri, nullable: true }
-        last: { type: string, format: uri }
+        self:
+          type: string
+          format: uri
+        first:
+          type: string
+          format: uri
+        prev:
+          type: string
+          format: uri
+          nullable: true
+        next:
+          type: string
+          format: uri
+          nullable: true
+        last:
+          type: string
+          format: uri
+    Login:
+      type: object
+      additionalProperties: false
+      required:
+        - email
+        - password
+      properties:
+        email:
+          type: string
+          format: email
+          maxLength: 254
+        password:
+          type: string
+          format: password
+          minLength: 1
+          description: Maximum 72 UTF-8 bytes.
+    Token:
+      type: object
+      additionalProperties: false
+      required:
+        - access_token
+        - token_type
+        - expires_in
+        - scope
+      properties:
+        access_token:
+          type: string
+        token_type:
+          type: string
+          enum:
+            - Bearer
+        expires_in:
+          type: integer
+          minimum: 1
+        scope:
+          type: string
+          enum:
+            - generation:read account:manage
+    User:
+      type: object
+      additionalProperties: false
+      required:
+        - user_id
+        - name
+        - email
+        - jurisdiction_type
+        - jurisdiction_id
+      properties:
+        user_id:
+          type: integer
+          minimum: 1
+        name:
+          type: string
+        email:
+          type: string
+          format: email
+        jurisdiction_type:
+          type: string
+          enum:
+            - national
+            - provincial
+            - district
+        jurisdiction_id:
+          type: integer
+          nullable: true
+          minimum: 1
   parameters:
     Page:
       name: page
       in: query
-      schema: { type: integer, minimum: 1, default: 1 }
+      schema:
+        type: integer
+        minimum: 1
+        default: 1
     PageSize:
       name: page_size
       in: query
-      schema: { type: integer, minimum: 1, maximum: 500, default: 50 }
+      schema:
+        type: integer
+        minimum: 1
+        maximum: 500
+        default: 50
     Sort:
       name: sort
       in: query
       description: Endpoint-specific allowlist; prefix with - for descending order
-      schema: { type: string }
+      schema:
+        type: string
     From:
       name: from
       in: query
       description: Inclusive ISO-8601 timestamp with Z or a timezone offset
-      schema: { type: string, format: date-time }
+      schema:
+        type: string
+        format: date-time
     To:
       name: to
       in: query
       description: Exclusive ISO-8601 timestamp with Z or a timezone offset
-      schema: { type: string, format: date-time }
+      schema:
+        type: string
+        format: date-time
     ProvinceId:
       name: province_id
       in: query
-      schema: { type: integer, minimum: 1 }
+      schema:
+        type: integer
+        minimum: 1
     DistrictId:
       name: district_id
       in: query
-      schema: { type: integer, minimum: 1 }
+      schema:
+        type: integer
+        minimum: 1
     SubstationId:
       name: substation_id
       in: query
-      schema: { type: integer, minimum: 1 }
+      schema:
+        type: integer
+        minimum: 1
     SiteId:
       name: site_id
       in: query
-      schema: { type: integer, minimum: 1 }
+      schema:
+        type: integer
+        minimum: 1
   responses:
     BadRequest:
-      description: Malformed JSON, invalid input, or body larger than 10 kb (400 VALIDATION_FAILED for size; contract has no 413)
-      headers: &errorHeaders
+      description:
+        Malformed JSON, invalid input, or body larger than 10 kb (400 VALIDATION_FAILED for
+        size; contract has no 413)
+      headers: &a9
         X-Request-Id:
           $ref: '#/components/headers/RequestId'
-      content: &errorContent
+      content: &a10
         application/json:
           schema:
             $ref: '#/components/schemas/Error'
     Unauthorized:
       description: Missing, invalid, expired, or revoked bearer token
       headers:
-        <<: *errorHeaders
+        <<: *a9
         WWW-Authenticate:
-          schema: { type: string }
+          schema:
+            type: string
           example: Bearer
-      content: *errorContent
+      content: *a10
     Forbidden:
       description: Principal lacks the required scope or jurisdiction
-      headers: *errorHeaders
-      content: *errorContent
+      headers: *a9
+      content: *a10
     NotFound:
       description: Unknown resource or route
-      headers: *errorHeaders
-      content: *errorContent
+      headers: *a9
+      content: *a10
     MethodNotAllowed:
       description: Method is unsupported on a known URI
       headers:
-        <<: *errorHeaders
+        <<: *a9
         Allow:
           description: Comma-separated supported methods
-          schema: { type: string }
+          schema:
+            type: string
           example: GET
-      content: *errorContent
+      content: *a10
     NotAcceptable:
       description: Accept does not permit the offered representation (JSON, or HTML for /docs)
-      headers: *errorHeaders
-      content: *errorContent
+      headers: *a9
+      content: *a10
     Conflict:
       description: Duplicate reading
-      headers: *errorHeaders
-      content: *errorContent
+      headers: *a9
+      content: *a10
     PreconditionFailed:
       description: A GET If-Match condition does not match the current representation (I3)
-      headers: *errorHeaders
-      content: *errorContent
+      headers: *a9
+      content: *a10
     UnsupportedMediaType:
       description: A write requires application/json, or the JSON charset or encoding is unsupported
-      headers: *errorHeaders
-      content: *errorContent
+      headers: *a9
+      content: *a10
     RateLimited:
       description: Too many requests
-      headers: *errorHeaders
-      content: *errorContent
+      headers: *a9
+      content: *a10
     InternalError:
       description: Unhandled server fault; generic message without implementation details
-      headers: *errorHeaders
-      content: *errorContent
+      headers: *a9
+      content: *a10
     NotModified:
       description: Current representation; empty response body (introduced in I3)
       headers:

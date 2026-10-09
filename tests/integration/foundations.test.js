@@ -29,15 +29,10 @@ test('health is public and has the required JSON and security headers', async ()
   expect(res.headers['last-modified']).toBeUndefined();
 });
 
-test('unknown routes use the shared error contract and domain endpoints do not exist', async () => {
-  for (const path of ['/missing', '/v1/provinces', '/v1/users/me']) {
+test('unknown routes use the shared error contract', async () => {
+  for (const path of ['/missing', '/v1/not-a-resource']) {
     expectApiError(await request(testApp).get(path), 404, 'NOT_FOUND');
   }
-  expectApiError(
-    await request(testApp).post('/v1/auth/tokens').send({}),
-    404,
-    'NOT_FOUND',
-  );
 });
 
 test.each(publicPaths)(
@@ -250,11 +245,9 @@ test('generated specification is current and every documented operation is a reg
       .map((method) => `${method} ${path}`),
   );
   expect(routes.sort()).toEqual(operations.sort());
-  expect(operations.sort()).toEqual([
-    'get /docs',
-    'get /health',
-    'get /openapi.json',
-  ]);
+  expect(operations).toEqual(
+    expect.arrayContaining(publicPaths.map((path) => `get ${path}`)),
+  );
   for (const path of publicPaths)
     expect(spec.paths[path].get.security).toEqual([]);
 });

@@ -181,3 +181,11 @@ implementation, but were not executed. I1 is not marked complete or tagged.
 - Verification: both migrations applied to initially empty Neon schema; complete integration suite passed; full reference seed restored after test fixtures; seed:tokens regenerated 240 credentials; independent read-only acceptance verified exact rows, 2 migration records, all 240 tokens, bcrypt cost 12, one reused hash and all 7 demo passwords. Build/lint/spec checks passed. No local database, Docker, additional database/branch or next-phase implementation was used.
 - Pitfall review: no Device model or cached last-value fields; composite reading PK and timestamptz retained; CHECK constraints enforced; bcrypt and HS256 claims validated; hashes and credentials excluded from API responses/logs, raw SQL fixed and tagged, database client reused, runtime env access centralized, generated/token/secret files ignored. Policy/endpoints/readings generation remain assigned to later increments.
 - Repair commit: pending; no I1 commit/tag or remote CI verification is claimed.
+
+### 2026-10-09 — I2 authentication and policy
+
+- Tool/model: OpenAI Codex, GPT-6. Prompt: docs/prompts/i2-auth-policy.md; owner requested I2 and I3 in order, referencing project.md.
+- Generated: bearer middleware, password-version revocation on every user-token request, user/device scope gates, strict case-normalized login with bcrypt dummy comparison, profile serializer, pure jurisdiction/level/scope helpers, one-query parameterized hierarchy lookup, OpenAPI operations and tests.
+- Review/repairs: preserved database-free public imports with lazy runtime singleton lookup; resolved parent province from database for district navigation; raw hierarchy queries are fixed and tagged; rejected extra body/query fields; adjusted foundations parity tests to include the new routes; fixed test formatting/lint conflicts. No password hash or token-version field leaves the profile serializer.
+- Validation: 93 tests across 12 suites passed on the supplied Neon database, including all 7 logins, invalid-token cases, password-version revocation and exhaustive caller/target policy matrix. Build, lint and both OpenAPI documents passed. No Docker or local database was used. Full seed restored after fixtures.
+- Repair commit: this I2 increment commit; commit identity recorded in the subsequent increment record.

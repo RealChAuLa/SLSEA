@@ -6,12 +6,18 @@ principals for devices and staff, and Vercel hosting. [project.md](project.md)
 defines the contract; [implementation_plan.md](implementation_plan.md) defines
 the increments.
 
-**Current increment: I1 Data layer, completion review passed.**
-I0's public health/docs and HTTP foundations remain the API surface. I1 adds the
-Prisma schema/migrations, reference seed, device-token tooling, and JWT/password
-utilities. All 73 tests passed, including integration checks on the owner's Neon
-database. Both migrations and the full reference seed were applied; 240 device
-tokens verified. Build, lint, and spec lint passed. I2 has not started.
+**Current increment: I2 Authentication and policy, verified. I3 is authorized next.**
+I1's data layer is committed as `12d7aae`. I2 adds `POST /v1/auth/tokens` and
+`GET /v1/users/me`, bearer verification, password-version revocation, scope/type
+gates, jurisdiction policy and hierarchy lookup. All 93 tests passed, including
+database integration checks. Build, lint and OpenAPI validation passed. Public
+health/docs remain database-free; the full reference seed and its 240 device
+tokens were restored after testing.
+
+Log in with any seeded email listed in Swagger and the demo password
+`Solar#Demo2026`. Send the returned `access_token` as `Authorization: Bearer ...`
+to `/v1/users/me`. Responses expose only the public profile fields. Device tokens
+cannot call user or hierarchy read endpoints.
 
 ## Local setup
 

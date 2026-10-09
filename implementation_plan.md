@@ -144,18 +144,20 @@ flowchart TD
 
 ## I2: Authentication & policy
 
+**Status (2026-10-09):** Implemented and verified: 93 tests passed; build, lint and OpenAPI lint passed against the provided Neon database. Public endpoints remain database-free. Review covered claims, revocation, scope/type enforcement, serializer whitelists and jurisdiction navigation. I3 is authorized next.
+
 **Goal:** login, token verification, scopes, and the pure jurisdiction policy that every later endpoint uses.
 **Builds on:** I1. **Refs:** §5.1–5.4, §4.7.
 
 **Tasks**
-- [ ] `src/middleware/auth.js`: parse `Authorization: Bearer`, verify via `verifyToken`, build `req.principal` (`{ kind: 'device', site_id, meter_id }` or `{ kind: 'user', user_id, jurisdiction_type, jurisdiction_id, scopes }`). Missing/invalid → `401 UNAUTHENTICATED` + `WWW-Authenticate: Bearer`; expired → `401 TOKEN_EXPIRED`.
-- [ ] User-token revocation: for `typ=user`, load the user by primary key and compare `pv`; missing user or mismatch → `401 TOKEN_REVOKED`.
-- [ ] `src/middleware/scopes.js`: `requireScope(...)` (→ `403 FORBIDDEN_SCOPE`), `requireUserToken`, `requireDeviceToken` (token-type enforcement).
-- [ ] `src/policy/levels.js`: level order (`national` > `provincial` > `district`). `src/policy/canRead.js`: pure `canRead(principal, chain)` and the navigation exception from §5.3 (district user may read their parent province's metadata). `src/services/hierarchy.js`: resolve a chain `{ province_id, district_id, substation_id, site_id }` from any level with one query.
-- [ ] `src/policy/scopeFilter.js`: from a principal, produce the jurisdiction descriptor (`national` / `{province, id}` / `{district, id}`) used by list queries later.
-- [ ] Auth service + `POST /v1/auth/tokens`: strict body `{ email, password }`; lowercase the email; compare bcrypt even when the user is missing (against a dummy hash) so timing does not reveal accounts; identical `401` for unknown email and wrong password; scopes `generation:read account:manage`; response `200 { access_token, token_type: "Bearer", expires_in, scope }`.
-- [ ] `GET /v1/users/me` (scope `account:manage`, user token): serializer whitelist (`user_id, name, email, jurisdiction_type, jurisdiction_id`).
-- [ ] Route-level `405` for other methods on these paths.
+- [x] `src/middleware/auth.js`: parse `Authorization: Bearer`, verify via `verifyToken`, build `req.principal` (`{ kind: 'device', site_id, meter_id }` or `{ kind: 'user', user_id, jurisdiction_type, jurisdiction_id, scopes }`). Missing/invalid → `401 UNAUTHENTICATED` + `WWW-Authenticate: Bearer`; expired → `401 TOKEN_EXPIRED`.
+- [x] User-token revocation: for `typ=user`, load the user by primary key and compare `pv`; missing user or mismatch → `401 TOKEN_REVOKED`.
+- [x] `src/middleware/scopes.js`: `requireScope(...)` (→ `403 FORBIDDEN_SCOPE`), `requireUserToken`, `requireDeviceToken` (token-type enforcement).
+- [x] `src/policy/levels.js`: level order (`national` > `provincial` > `district`). `src/policy/canRead.js`: pure `canRead(principal, chain)` and the navigation exception from §5.3 (district user may read their parent province's metadata). `src/services/hierarchy.js`: resolve a chain `{ province_id, district_id, substation_id, site_id }` from any level with one query.
+- [x] `src/policy/scopeFilter.js`: from a principal, produce the jurisdiction descriptor (`national` / `{province, id}` / `{district, id}`) used by list queries later.
+- [x] Auth service + `POST /v1/auth/tokens`: strict body `{ email, password }`; lowercase the email; compare bcrypt even when the user is missing (against a dummy hash) so timing does not reveal accounts; identical `401` for unknown email and wrong password; scopes `generation:read account:manage`; response `200 { access_token, token_type: "Bearer", expires_in, scope }`.
+- [x] `GET /v1/users/me` (scope `account:manage`, user token): serializer whitelist (`user_id, name, email, jurisdiction_type, jurisdiction_id`).
+- [x] Route-level `405` for other methods on these paths.
 
 **OpenAPI:** `/auth/tokens`, `/users/me`, `bearerAuth`, the demo-login list in `info.description`.
 

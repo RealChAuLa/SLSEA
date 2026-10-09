@@ -8,12 +8,15 @@ import { negotiation } from './middleware/negotiation.js';
 import { ApiError } from './errors/api-error.js';
 import { errorHandler } from './errors/handler.js';
 import { registerPublicRoutes } from './routes/public.js';
+import { registerDomainRoutes } from './routes/domain.js';
 import { bootstrapCspHash } from './controllers/docs.js';
 
 export function createApp({
   config = defaultConfig,
   logger = defaultLogger,
   router,
+  db,
+  tokens,
 } = {}) {
   const app = express();
   app.disable('x-powered-by');
@@ -79,6 +82,7 @@ export function createApp({
     }),
   );
   registerPublicRoutes(app);
+  registerDomainRoutes(app, { db, tokens });
   if (router) app.use(router);
   app.use((_req, _res, next) =>
     next(
