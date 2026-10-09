@@ -53,6 +53,8 @@ test('device, malformed principal and missing target fail closed', () => {
     canRead({ kind: 'user', jurisdiction_type: 'unknown' }, chains.province),
   ).toBe(false);
   expect(canRead(callers[0][1], null)).toBe(false);
+  expect(canRead(callers[0][1], {})).toBe(false);
+  expect(canRead(callers[2][1], { province_id: 1, site_id: 1 })).toBe(false);
   expect(
     canRead(
       { ...callers[2][1], parent_province_id: undefined },

@@ -111,7 +111,7 @@ flowchart TD
 
 ## I1: Data layer
 
-**Status (2026-10-09):** I1 completion review passed: build, lint, OpenAPI lint, and all 73 tests. Both migrations were applied to the owner's provided Neon production database, as explicitly requested; no local database or Docker was used. Test-scale checks passed and the full seed was restored (9 provinces, 25 districts, 30 substations, 240 installations, 7 users, 0 readings). All 240 regenerated device tokens and all 7 demo passwords verified. Missing initial SQL and malformed URL validation were repaired. Commit/tag and remote CI remain pending. I2 has not started.
+**Status (2026-10-09):** I1 completion review passed: build, lint, OpenAPI lint, and all 73 tests. Both migrations were applied to the owner's provided Neon production database, as explicitly requested; no local database or Docker was used. Test-scale checks passed and the full seed was restored (9 provinces, 25 districts, 30 substations, 240 installations, 7 users, 0 readings). All 240 regenerated device tokens and all 7 demo passwords verified. Missing initial SQL and malformed URL validation were repaired. I1 was committed as 12d7aae and pushed; its tag is absent and remote CI remains unverified. I2 has not started.
 
 **Goal:** the database schema, the deterministic seed (reference data + users) and device tokens.
 **Builds on:** I0. **Refs:** §2.3–2.6, §5.1, §6.1–6.4, §6.7, §6.9.
@@ -174,23 +174,25 @@ flowchart TD
 
 ## I3: Hierarchy read path
 
+**Status (2026-10-09):** Implemented and verified: all 110 tests across 14 suites, build, lint, OpenAPI lint and default-app Neon smoke passed. All nine hierarchy GETs enforce caller jurisdiction; filters only narrow; conditional checks follow authorization. Full 240-installation reference seed restored and 240 device tokens verified after compact fixtures. I2 commit: 58a0bc0 (i2-auth-policy); I3 completion tag: i3-hierarchy-read. Remote CI is unverified. I4 has not started.
+
 **Goal:** the complete, jurisdiction-scoped hierarchy read API with pagination, sorting, conditional GET.
 **Builds on:** I2. **Refs:** §3.1–3.2, §4.2–4.5, §5.3.
 
 **Tasks**
-- [ ] `src/utils/pagination.js`: parse `page`/`page_size` (defaults and max from config), build the envelope (§4.4), absolute `links` from forwarded host/protocol, and the `Link` header (RFC 8288). Count and page rows via one `prisma.$transaction`.
-- [ ] `src/utils/sort.js`: whitelist-based `sort` parsing (`name`/`-name`; default primary key ascending); unknown field → `400 INVALID_QUERY`.
-- [ ] `src/utils/conditional.js`: given a response body and optional `lastModified`, compute a strong `ETag` (hash of the serialised body), set `Cache-Control: private, no-cache` and `Vary`, then evaluate in RFC 9110 order: `If-Match` (→ `412 PRECONDITION_FAILED`), `If-None-Match` (→ `304`, empty body, ETag kept). `If-Modified-Since` support is added in I4. Evaluation happens last in the pipeline.
-- [ ] Strict query validation per endpoint (unknown params → `400`).
-- [ ] Serializers: Province, District, GridSubstation, SolarInstallation (field lists in §3.2).
-- [ ] Endpoints (all `GET`, scope `generation:read`, user token):
+- [x] `src/utils/pagination.js`: parse `page`/`page_size` (defaults and max from config), build the envelope (§4.4), absolute `links` from forwarded host/protocol, and the `Link` header (RFC 8288). Count and page rows via one `prisma.$transaction`.
+- [x] `src/utils/sort.js`: whitelist-based `sort` parsing (`name`/`-name`; default primary key ascending); unknown field → `400 INVALID_QUERY`.
+- [x] `src/utils/conditional.js`: given a response body and optional `lastModified`, compute a strong `ETag` (hash of the serialised body), set `Cache-Control: private, no-cache` and `Vary`, then evaluate in RFC 9110 order: `If-Match` (→ `412 PRECONDITION_FAILED`), `If-None-Match` (→ `304`, empty body, ETag kept). `If-Modified-Since` support is added in I4. Evaluation happens last in the pipeline.
+- [x] Strict query validation per endpoint (unknown params → `400`).
+- [x] Serializers: Province, District, GridSubstation, SolarInstallation (field lists in §3.2).
+- [x] Endpoints (all `GET`, scope `generation:read`, user token):
   `/provinces`, `/provinces/{id}`, `/provinces/{id}/districts`, `/districts/{id}`, `/districts/{id}/grid-substations`, `/grid-substations/{id}`, `/grid-substations/{id}/installations`, `/installations`, `/installations/{siteId}`.
-- [ ] Visibility rules (implement via `canRead` and jurisdiction-derived `where` fragments):
+- [x] Visibility rules (implement via `canRead` and jurisdiction-derived `where` fragments):
   - `GET /provinces`: national → all; provincial → own province; district → parent province.
   - Atomic resources: unknown id → `404`; outside jurisdiction → `403 FORBIDDEN_JURISDICTION`.
   - Scoped lists: check the parent first (403/404), then **filter** the list to the caller's jurisdiction (e.g. a district user listing `/provinces/{ownProvince}/districts` sees only their district).
   - `/installations` filters `province_id`, `district_id`, `substation_id`: unknown filter id → `404`; filter outside jurisdiction → `403`; filters only narrow; no filter → the caller's whole jurisdiction.
-- [ ] `405` + `Allow` for every non-GET method on these paths.
+- [x] `405` + `Allow` for every non-GET method on these paths.
 
 **OpenAPI:** all of the above, including `page`, `page_size`, `sort`, filter parameters, `304`/`412` responses and `ETag`/`Link` headers.
 

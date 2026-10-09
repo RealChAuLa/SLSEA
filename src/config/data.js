@@ -44,6 +44,24 @@ export function loadDatabaseConfig(env = process.env) {
   return Object.freeze({ databaseUrl: values.DATABASE_URL });
 }
 
+export function loadPaginationConfig(env = process.env) {
+  const values = readConfig(
+    z
+      .object({
+        DEFAULT_PAGE_SIZE: positiveInt.max(500).default(50),
+        MAX_PAGE_SIZE: positiveInt.max(500).default(500),
+      })
+      .refine((values) => values.DEFAULT_PAGE_SIZE <= values.MAX_PAGE_SIZE, {
+        path: ['DEFAULT_PAGE_SIZE'],
+      }),
+    env,
+  );
+  return Object.freeze({
+    defaultPageSize: values.DEFAULT_PAGE_SIZE,
+    maxPageSize: values.MAX_PAGE_SIZE,
+  });
+}
+
 export function loadMigrationConfig(
   env = process.env,
   { required = true } = {},

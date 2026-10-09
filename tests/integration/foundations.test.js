@@ -225,7 +225,10 @@ test('generated specification is current and every documented operation is a reg
     layer.route
       ? Object.keys(layer.route.methods)
           .filter((method) => method !== '_all')
-          .map((method) => `${method} ${layer.route.path}`)
+          .map(
+            (method) =>
+              `${method} ${layer.route.path.replace(/:([A-Za-z]+)(?=\/|$)/g, '{$1}')}`,
+          )
       : [],
   );
   const operations = Object.entries(spec.paths).flatMap(([path, item]) =>

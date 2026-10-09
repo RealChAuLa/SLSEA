@@ -2,8 +2,8 @@
   "openapi": "3.0.3",
   "info": {
     "title": "SLSEA Solar Generation Data API",
-    "version": "0.2.0",
-    "description": "I2 Authentication and policy. Health and documentation remain public.\nDomain endpoints use /v1 and JWT bearer authentication. Every user operation\nrequires its documented scope; all errors use the Error schema.\nDemo password: Solar#Demo2026 (all seven seeded users).\nDemo logins: national.operator@slsea.lk, national.analyst@slsea.lk,\nwestern.province@slsea.lk, central.province@slsea.lk,\ncolombo.district@slsea.lk, gampaha.district@slsea.lk, kandy.district@slsea.lk.\n",
+    "version": "0.3.0",
+    "description": "I3 Hierarchy reads, authentication and policy. Health and documentation remain public.\nDomain endpoints use /v1 and JWT bearer authentication. Every user operation\nrequires its documented scope; all errors use the Error schema.\nDemo password: Solar#Demo2026 (all seven seeded users).\nDemo logins: national.operator@slsea.lk, national.analyst@slsea.lk,\nwestern.province@slsea.lk, central.province@slsea.lk,\ncolombo.district@slsea.lk, gampaha.district@slsea.lk, kandy.district@slsea.lk.\n",
     "license": {
       "name": "Private project; all rights reserved",
       "url": "https://www.energy.gov.lk/"
@@ -32,6 +32,10 @@
     {
       "name": "Authentication",
       "description": "User login and own profile"
+    },
+    {
+      "name": "Hierarchy",
+      "description": "Jurisdiction-scoped provinces, districts, substations and installations"
     }
   ],
   "paths": {
@@ -81,6 +85,9 @@
               }
             }
           },
+          "304": {
+            "$ref": "#/components/responses/NotModified"
+          },
           "400": {
             "$ref": "#/components/responses/BadRequest"
           },
@@ -90,13 +97,24 @@
           "406": {
             "$ref": "#/components/responses/NotAcceptable"
           },
+          "412": {
+            "$ref": "#/components/responses/PreconditionFailed"
+          },
           "415": {
             "$ref": "#/components/responses/UnsupportedMediaType"
           },
           "500": {
             "$ref": "#/components/responses/InternalError"
           }
-        }
+        },
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/IfMatch"
+          },
+          {
+            "$ref": "#/components/parameters/IfNoneMatch"
+          }
+        ]
       }
     },
     "/openapi.json": {
@@ -154,6 +172,9 @@
               }
             }
           },
+          "304": {
+            "$ref": "#/components/responses/NotModified"
+          },
           "400": {
             "$ref": "#/components/responses/BadRequest"
           },
@@ -163,13 +184,24 @@
           "406": {
             "$ref": "#/components/responses/NotAcceptable"
           },
+          "412": {
+            "$ref": "#/components/responses/PreconditionFailed"
+          },
           "415": {
             "$ref": "#/components/responses/UnsupportedMediaType"
           },
           "500": {
             "$ref": "#/components/responses/InternalError"
           }
-        }
+        },
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/IfMatch"
+          },
+          {
+            "$ref": "#/components/parameters/IfNoneMatch"
+          }
+        ]
       }
     },
     "/docs": {
@@ -204,6 +236,9 @@
               }
             }
           },
+          "304": {
+            "$ref": "#/components/responses/NotModified"
+          },
           "400": {
             "$ref": "#/components/responses/BadRequest"
           },
@@ -213,13 +248,24 @@
           "406": {
             "$ref": "#/components/responses/NotAcceptable"
           },
+          "412": {
+            "$ref": "#/components/responses/PreconditionFailed"
+          },
           "415": {
             "$ref": "#/components/responses/UnsupportedMediaType"
           },
           "500": {
             "$ref": "#/components/responses/InternalError"
           }
-        }
+        },
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/IfMatch"
+          },
+          {
+            "$ref": "#/components/parameters/IfNoneMatch"
+          }
+        ]
       }
     },
     "/v1/auth/tokens": {
@@ -294,7 +340,7 @@
           "Authentication"
         ],
         "summary": "Read the current user profile",
-        "description": "Requires a user token and account:manage scope. Password-version revocation is checked before returning public profile fields. No query parameters.",
+        "description": "Requires a user token and account:manage scope. Password-version revocation is checked before returning public profile fields. No query parameters. Conditional ETag checks follow authentication and revocation.",
         "responses": {
           "200": {
             "description": "Current user profile",
@@ -322,6 +368,9 @@
               }
             }
           },
+          "304": {
+            "$ref": "#/components/responses/NotModified"
+          },
           "400": {
             "$ref": "#/components/responses/BadRequest"
           },
@@ -336,6 +385,822 @@
           },
           "406": {
             "$ref": "#/components/responses/NotAcceptable"
+          },
+          "412": {
+            "$ref": "#/components/responses/PreconditionFailed"
+          },
+          "415": {
+            "$ref": "#/components/responses/UnsupportedMediaType"
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalError"
+          }
+        },
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/IfMatch"
+          },
+          {
+            "$ref": "#/components/parameters/IfNoneMatch"
+          }
+        ]
+      }
+    },
+    "/v1/provinces": {
+      "get": {
+        "operationId": "listProvinces",
+        "tags": [
+          "Hierarchy"
+        ],
+        "summary": "list Provinces",
+        "description": "Requires a user token and generation:read scope. Jurisdiction is derived from the token and filters only narrow. Unknown IDs return 404; outside jurisdiction returns 403. Unknown query parameters return 400. Returns a filtered, paginated collection; count and page rows share a repeatable-read transaction. District users see only their district beneath their parent province. Empty collections use total_pages=0 with first/last page=1; a beyond-last page links prev to the last real page. Reporting/include options and reading resources arrive in later increments.",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/Page"
+          },
+          {
+            "$ref": "#/components/parameters/PageSize"
+          },
+          {
+            "$ref": "#/components/parameters/Sort"
+          },
+          {
+            "$ref": "#/components/parameters/IfMatch"
+          },
+          {
+            "$ref": "#/components/parameters/IfNoneMatch"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Jurisdiction-scoped collection",
+            "headers": {
+              "X-Request-Id": {
+                "$ref": "#/components/headers/RequestId"
+              },
+              "ETag": {
+                "$ref": "#/components/headers/ETag"
+              },
+              "Vary": {
+                "$ref": "#/components/headers/Vary"
+              },
+              "Cache-Control": {
+                "$ref": "#/components/headers/CacheControl"
+              },
+              "Link": {
+                "$ref": "#/components/headers/Link"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProvinceCollection"
+                }
+              }
+            }
+          },
+          "304": {
+            "$ref": "#/components/responses/NotModified"
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "405": {
+            "$ref": "#/components/responses/MethodNotAllowed"
+          },
+          "406": {
+            "$ref": "#/components/responses/NotAcceptable"
+          },
+          "412": {
+            "$ref": "#/components/responses/PreconditionFailed"
+          },
+          "415": {
+            "$ref": "#/components/responses/UnsupportedMediaType"
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalError"
+          }
+        }
+      }
+    },
+    "/v1/provinces/{provinceId}": {
+      "get": {
+        "operationId": "getProvince",
+        "tags": [
+          "Hierarchy"
+        ],
+        "summary": "get Province",
+        "description": "Requires a user token and generation:read scope. Jurisdiction is derived from the token and filters only narrow. Unknown IDs return 404; outside jurisdiction returns 403. Unknown query parameters return 400. Returns public metadata only. District users may read their parent province metadata for navigation. Reporting/include options and reading resources arrive in later increments.",
+        "parameters": [
+          {
+            "name": "provinceId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 2147483647
+            }
+          },
+          {
+            "$ref": "#/components/parameters/IfMatch"
+          },
+          {
+            "$ref": "#/components/parameters/IfNoneMatch"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Public resource fields",
+            "headers": {
+              "X-Request-Id": {
+                "$ref": "#/components/headers/RequestId"
+              },
+              "ETag": {
+                "$ref": "#/components/headers/ETag"
+              },
+              "Vary": {
+                "$ref": "#/components/headers/Vary"
+              },
+              "Cache-Control": {
+                "$ref": "#/components/headers/CacheControl"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Province"
+                }
+              }
+            }
+          },
+          "304": {
+            "$ref": "#/components/responses/NotModified"
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "405": {
+            "$ref": "#/components/responses/MethodNotAllowed"
+          },
+          "406": {
+            "$ref": "#/components/responses/NotAcceptable"
+          },
+          "412": {
+            "$ref": "#/components/responses/PreconditionFailed"
+          },
+          "415": {
+            "$ref": "#/components/responses/UnsupportedMediaType"
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalError"
+          }
+        }
+      }
+    },
+    "/v1/provinces/{provinceId}/districts": {
+      "get": {
+        "operationId": "listProvinceDistricts",
+        "tags": [
+          "Hierarchy"
+        ],
+        "summary": "list Province Districts",
+        "description": "Requires a user token and generation:read scope. Jurisdiction is derived from the token and filters only narrow. Unknown IDs return 404; outside jurisdiction returns 403. Unknown query parameters return 400. Returns a filtered, paginated collection; count and page rows share a repeatable-read transaction. District users see only their district beneath their parent province. Empty collections use total_pages=0 with first/last page=1; a beyond-last page links prev to the last real page. Reporting/include options and reading resources arrive in later increments.",
+        "parameters": [
+          {
+            "name": "provinceId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 2147483647
+            }
+          },
+          {
+            "$ref": "#/components/parameters/Page"
+          },
+          {
+            "$ref": "#/components/parameters/PageSize"
+          },
+          {
+            "$ref": "#/components/parameters/Sort"
+          },
+          {
+            "$ref": "#/components/parameters/IfMatch"
+          },
+          {
+            "$ref": "#/components/parameters/IfNoneMatch"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Jurisdiction-scoped collection",
+            "headers": {
+              "X-Request-Id": {
+                "$ref": "#/components/headers/RequestId"
+              },
+              "ETag": {
+                "$ref": "#/components/headers/ETag"
+              },
+              "Vary": {
+                "$ref": "#/components/headers/Vary"
+              },
+              "Cache-Control": {
+                "$ref": "#/components/headers/CacheControl"
+              },
+              "Link": {
+                "$ref": "#/components/headers/Link"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DistrictCollection"
+                }
+              }
+            }
+          },
+          "304": {
+            "$ref": "#/components/responses/NotModified"
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "405": {
+            "$ref": "#/components/responses/MethodNotAllowed"
+          },
+          "406": {
+            "$ref": "#/components/responses/NotAcceptable"
+          },
+          "412": {
+            "$ref": "#/components/responses/PreconditionFailed"
+          },
+          "415": {
+            "$ref": "#/components/responses/UnsupportedMediaType"
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalError"
+          }
+        }
+      }
+    },
+    "/v1/districts/{districtId}": {
+      "get": {
+        "operationId": "getDistrict",
+        "tags": [
+          "Hierarchy"
+        ],
+        "summary": "get District",
+        "description": "Requires a user token and generation:read scope. Jurisdiction is derived from the token and filters only narrow. Unknown IDs return 404; outside jurisdiction returns 403. Unknown query parameters return 400. Returns public metadata only. District users may read their parent province metadata for navigation. Reporting/include options and reading resources arrive in later increments.",
+        "parameters": [
+          {
+            "name": "districtId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 2147483647
+            }
+          },
+          {
+            "$ref": "#/components/parameters/IfMatch"
+          },
+          {
+            "$ref": "#/components/parameters/IfNoneMatch"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Public resource fields",
+            "headers": {
+              "X-Request-Id": {
+                "$ref": "#/components/headers/RequestId"
+              },
+              "ETag": {
+                "$ref": "#/components/headers/ETag"
+              },
+              "Vary": {
+                "$ref": "#/components/headers/Vary"
+              },
+              "Cache-Control": {
+                "$ref": "#/components/headers/CacheControl"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/District"
+                }
+              }
+            }
+          },
+          "304": {
+            "$ref": "#/components/responses/NotModified"
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "405": {
+            "$ref": "#/components/responses/MethodNotAllowed"
+          },
+          "406": {
+            "$ref": "#/components/responses/NotAcceptable"
+          },
+          "412": {
+            "$ref": "#/components/responses/PreconditionFailed"
+          },
+          "415": {
+            "$ref": "#/components/responses/UnsupportedMediaType"
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalError"
+          }
+        }
+      }
+    },
+    "/v1/districts/{districtId}/grid-substations": {
+      "get": {
+        "operationId": "listDistrictSubstations",
+        "tags": [
+          "Hierarchy"
+        ],
+        "summary": "list District Substations",
+        "description": "Requires a user token and generation:read scope. Jurisdiction is derived from the token and filters only narrow. Unknown IDs return 404; outside jurisdiction returns 403. Unknown query parameters return 400. Returns a filtered, paginated collection; count and page rows share a repeatable-read transaction. District users see only their district beneath their parent province. Empty collections use total_pages=0 with first/last page=1; a beyond-last page links prev to the last real page. Reporting/include options and reading resources arrive in later increments.",
+        "parameters": [
+          {
+            "name": "districtId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 2147483647
+            }
+          },
+          {
+            "$ref": "#/components/parameters/Page"
+          },
+          {
+            "$ref": "#/components/parameters/PageSize"
+          },
+          {
+            "$ref": "#/components/parameters/Sort"
+          },
+          {
+            "$ref": "#/components/parameters/IfMatch"
+          },
+          {
+            "$ref": "#/components/parameters/IfNoneMatch"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Jurisdiction-scoped collection",
+            "headers": {
+              "X-Request-Id": {
+                "$ref": "#/components/headers/RequestId"
+              },
+              "ETag": {
+                "$ref": "#/components/headers/ETag"
+              },
+              "Vary": {
+                "$ref": "#/components/headers/Vary"
+              },
+              "Cache-Control": {
+                "$ref": "#/components/headers/CacheControl"
+              },
+              "Link": {
+                "$ref": "#/components/headers/Link"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GridSubstationCollection"
+                }
+              }
+            }
+          },
+          "304": {
+            "$ref": "#/components/responses/NotModified"
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "405": {
+            "$ref": "#/components/responses/MethodNotAllowed"
+          },
+          "406": {
+            "$ref": "#/components/responses/NotAcceptable"
+          },
+          "412": {
+            "$ref": "#/components/responses/PreconditionFailed"
+          },
+          "415": {
+            "$ref": "#/components/responses/UnsupportedMediaType"
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalError"
+          }
+        }
+      }
+    },
+    "/v1/grid-substations/{substationId}": {
+      "get": {
+        "operationId": "getGridSubstation",
+        "tags": [
+          "Hierarchy"
+        ],
+        "summary": "get Grid Substation",
+        "description": "Requires a user token and generation:read scope. Jurisdiction is derived from the token and filters only narrow. Unknown IDs return 404; outside jurisdiction returns 403. Unknown query parameters return 400. Returns public metadata only. District users may read their parent province metadata for navigation. Reporting/include options and reading resources arrive in later increments.",
+        "parameters": [
+          {
+            "name": "substationId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 2147483647
+            }
+          },
+          {
+            "$ref": "#/components/parameters/IfMatch"
+          },
+          {
+            "$ref": "#/components/parameters/IfNoneMatch"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Public resource fields",
+            "headers": {
+              "X-Request-Id": {
+                "$ref": "#/components/headers/RequestId"
+              },
+              "ETag": {
+                "$ref": "#/components/headers/ETag"
+              },
+              "Vary": {
+                "$ref": "#/components/headers/Vary"
+              },
+              "Cache-Control": {
+                "$ref": "#/components/headers/CacheControl"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GridSubstation"
+                }
+              }
+            }
+          },
+          "304": {
+            "$ref": "#/components/responses/NotModified"
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "405": {
+            "$ref": "#/components/responses/MethodNotAllowed"
+          },
+          "406": {
+            "$ref": "#/components/responses/NotAcceptable"
+          },
+          "412": {
+            "$ref": "#/components/responses/PreconditionFailed"
+          },
+          "415": {
+            "$ref": "#/components/responses/UnsupportedMediaType"
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalError"
+          }
+        }
+      }
+    },
+    "/v1/grid-substations/{substationId}/installations": {
+      "get": {
+        "operationId": "listSubstationInstallations",
+        "tags": [
+          "Hierarchy"
+        ],
+        "summary": "list Substation Installations",
+        "description": "Requires a user token and generation:read scope. Jurisdiction is derived from the token and filters only narrow. Unknown IDs return 404; outside jurisdiction returns 403. Unknown query parameters return 400. Returns a filtered, paginated collection; count and page rows share a repeatable-read transaction. District users see only their district beneath their parent province. Empty collections use total_pages=0 with first/last page=1; a beyond-last page links prev to the last real page. Reporting/include options and reading resources arrive in later increments.",
+        "parameters": [
+          {
+            "name": "substationId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 2147483647
+            }
+          },
+          {
+            "$ref": "#/components/parameters/Page"
+          },
+          {
+            "$ref": "#/components/parameters/PageSize"
+          },
+          {
+            "$ref": "#/components/parameters/Sort"
+          },
+          {
+            "$ref": "#/components/parameters/IfMatch"
+          },
+          {
+            "$ref": "#/components/parameters/IfNoneMatch"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Jurisdiction-scoped collection",
+            "headers": {
+              "X-Request-Id": {
+                "$ref": "#/components/headers/RequestId"
+              },
+              "ETag": {
+                "$ref": "#/components/headers/ETag"
+              },
+              "Vary": {
+                "$ref": "#/components/headers/Vary"
+              },
+              "Cache-Control": {
+                "$ref": "#/components/headers/CacheControl"
+              },
+              "Link": {
+                "$ref": "#/components/headers/Link"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SolarInstallationCollection"
+                }
+              }
+            }
+          },
+          "304": {
+            "$ref": "#/components/responses/NotModified"
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "405": {
+            "$ref": "#/components/responses/MethodNotAllowed"
+          },
+          "406": {
+            "$ref": "#/components/responses/NotAcceptable"
+          },
+          "412": {
+            "$ref": "#/components/responses/PreconditionFailed"
+          },
+          "415": {
+            "$ref": "#/components/responses/UnsupportedMediaType"
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalError"
+          }
+        }
+      }
+    },
+    "/v1/installations": {
+      "get": {
+        "operationId": "listInstallations",
+        "tags": [
+          "Hierarchy"
+        ],
+        "summary": "list Installations",
+        "description": "Requires a user token and generation:read scope. Jurisdiction is derived from the token and filters only narrow. Unknown IDs return 404; outside jurisdiction returns 403. Unknown query parameters return 400. Returns a filtered, paginated collection; count and page rows share a repeatable-read transaction. District users see only their district beneath their parent province. Empty collections use total_pages=0 with first/last page=1; a beyond-last page links prev to the last real page. Each supplied filter ID is independently authorized; filters are ANDed and contradictory authorized filters return an empty set. Reporting/include options and reading resources arrive in later increments.",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/Page"
+          },
+          {
+            "$ref": "#/components/parameters/PageSize"
+          },
+          {
+            "$ref": "#/components/parameters/Sort"
+          },
+          {
+            "$ref": "#/components/parameters/IfMatch"
+          },
+          {
+            "$ref": "#/components/parameters/IfNoneMatch"
+          },
+          {
+            "$ref": "#/components/parameters/ProvinceId"
+          },
+          {
+            "$ref": "#/components/parameters/DistrictId"
+          },
+          {
+            "$ref": "#/components/parameters/SubstationId"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Jurisdiction-scoped collection",
+            "headers": {
+              "X-Request-Id": {
+                "$ref": "#/components/headers/RequestId"
+              },
+              "ETag": {
+                "$ref": "#/components/headers/ETag"
+              },
+              "Vary": {
+                "$ref": "#/components/headers/Vary"
+              },
+              "Cache-Control": {
+                "$ref": "#/components/headers/CacheControl"
+              },
+              "Link": {
+                "$ref": "#/components/headers/Link"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SolarInstallationCollection"
+                }
+              }
+            }
+          },
+          "304": {
+            "$ref": "#/components/responses/NotModified"
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "405": {
+            "$ref": "#/components/responses/MethodNotAllowed"
+          },
+          "406": {
+            "$ref": "#/components/responses/NotAcceptable"
+          },
+          "412": {
+            "$ref": "#/components/responses/PreconditionFailed"
+          },
+          "415": {
+            "$ref": "#/components/responses/UnsupportedMediaType"
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalError"
+          }
+        }
+      }
+    },
+    "/v1/installations/{siteId}": {
+      "get": {
+        "operationId": "getInstallation",
+        "tags": [
+          "Hierarchy"
+        ],
+        "summary": "get Installation",
+        "description": "Requires a user token and generation:read scope. Jurisdiction is derived from the token and filters only narrow. Unknown IDs return 404; outside jurisdiction returns 403. Unknown query parameters return 400. Returns public metadata only. District users may read their parent province metadata for navigation. Reporting/include options and reading resources arrive in later increments.",
+        "parameters": [
+          {
+            "name": "siteId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 2147483647
+            }
+          },
+          {
+            "$ref": "#/components/parameters/IfMatch"
+          },
+          {
+            "$ref": "#/components/parameters/IfNoneMatch"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Public resource fields",
+            "headers": {
+              "X-Request-Id": {
+                "$ref": "#/components/headers/RequestId"
+              },
+              "ETag": {
+                "$ref": "#/components/headers/ETag"
+              },
+              "Vary": {
+                "$ref": "#/components/headers/Vary"
+              },
+              "Cache-Control": {
+                "$ref": "#/components/headers/CacheControl"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SolarInstallation"
+                }
+              }
+            }
+          },
+          "304": {
+            "$ref": "#/components/responses/NotModified"
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "405": {
+            "$ref": "#/components/responses/MethodNotAllowed"
+          },
+          "406": {
+            "$ref": "#/components/responses/NotAcceptable"
+          },
+          "412": {
+            "$ref": "#/components/responses/PreconditionFailed"
           },
           "415": {
             "$ref": "#/components/responses/UnsupportedMediaType"
@@ -365,7 +1230,7 @@
         "example": "b6f1c0a2-0f5e-4d3a-9d6c-1d2a3b4c5d6e"
       },
       "ETag": {
-        "description": "Hash of the serialized successful GET representation; conditional evaluation arrives in I3",
+        "description": "Strong SHA-256 hash of the serialized representation. If-Match uses strong comparison; If-None-Match uses weak comparison after authentication and authorization.",
         "schema": {
           "type": "string"
         },
@@ -392,10 +1257,18 @@
         }
       },
       "Link": {
-        "description": "RFC 8288 pagination links (introduced in I3)",
+        "description": "RFC 8288 first/prev/next/last links; null relations are omitted.",
         "schema": {
           "type": "string"
-        }
+        },
+        "example": "<https://api.example.test/v1/provinces?page=1&page_size=50>; rel=\"first\""
+      },
+      "CacheControl": {
+        "description": "Authenticated GETs require revalidation; token responses forbid caching.",
+        "schema": {
+          "type": "string"
+        },
+        "example": "private, no-cache"
       }
     },
     "schemas": {
@@ -638,6 +1511,204 @@
             "minimum": 1
           }
         }
+      },
+      "Province": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "province_id",
+          "name"
+        ],
+        "properties": {
+          "province_id": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 2147483647
+          },
+          "name": {
+            "type": "string"
+          }
+        }
+      },
+      "District": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "district_id",
+          "name",
+          "province_id"
+        ],
+        "properties": {
+          "district_id": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 2147483647
+          },
+          "name": {
+            "type": "string"
+          },
+          "province_id": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 2147483647
+          }
+        }
+      },
+      "GridSubstation": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "substation_id",
+          "name",
+          "district_id"
+        ],
+        "properties": {
+          "substation_id": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 2147483647
+          },
+          "name": {
+            "type": "string"
+          },
+          "district_id": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 2147483647
+          }
+        }
+      },
+      "SolarInstallation": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "site_id",
+          "name",
+          "meter_id",
+          "latitude",
+          "longitude",
+          "substation_id"
+        ],
+        "properties": {
+          "site_id": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 2147483647
+          },
+          "name": {
+            "type": "string"
+          },
+          "meter_id": {
+            "type": "string"
+          },
+          "latitude": {
+            "type": "number",
+            "minimum": -90,
+            "maximum": 90
+          },
+          "longitude": {
+            "type": "number",
+            "minimum": -180,
+            "maximum": 180
+          },
+          "substation_id": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 2147483647
+          }
+        }
+      },
+      "ProvinceCollection": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "data",
+          "pagination",
+          "links"
+        ],
+        "properties": {
+          "data": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Province"
+            }
+          },
+          "pagination": {
+            "$ref": "#/components/schemas/Pagination"
+          },
+          "links": {
+            "$ref": "#/components/schemas/Links"
+          }
+        }
+      },
+      "DistrictCollection": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "data",
+          "pagination",
+          "links"
+        ],
+        "properties": {
+          "data": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/District"
+            }
+          },
+          "pagination": {
+            "$ref": "#/components/schemas/Pagination"
+          },
+          "links": {
+            "$ref": "#/components/schemas/Links"
+          }
+        }
+      },
+      "GridSubstationCollection": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "data",
+          "pagination",
+          "links"
+        ],
+        "properties": {
+          "data": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/GridSubstation"
+            }
+          },
+          "pagination": {
+            "$ref": "#/components/schemas/Pagination"
+          },
+          "links": {
+            "$ref": "#/components/schemas/Links"
+          }
+        }
+      },
+      "SolarInstallationCollection": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "data",
+          "pagination",
+          "links"
+        ],
+        "properties": {
+          "data": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/SolarInstallation"
+            }
+          },
+          "pagination": {
+            "$ref": "#/components/schemas/Pagination"
+          },
+          "links": {
+            "$ref": "#/components/schemas/Links"
+          }
+        }
       }
     },
     "parameters": {
@@ -648,7 +1719,8 @@
           "type": "integer",
           "minimum": 1,
           "default": 1
-        }
+        },
+        "description": "Positive integer page. Out-of-range pages return empty data with correct totals; database offset must fit a signed 32-bit integer."
       },
       "PageSize": {
         "name": "page_size",
@@ -658,14 +1730,19 @@
           "minimum": 1,
           "maximum": 500,
           "default": 50
-        }
+        },
+        "description": "Positive integer page size; defaults and maximum come from runtime configuration (50 and 500)."
       },
       "Sort": {
         "name": "sort",
         "in": "query",
-        "description": "Endpoint-specific allowlist; prefix with - for descending order",
+        "description": "Sort by name ascending/descending; defaults to primary key ascending. Primary key breaks name ties.",
         "schema": {
-          "type": "string"
+          "type": "string",
+          "enum": [
+            "name",
+            "-name"
+          ]
         }
       },
       "From": {
@@ -691,7 +1768,8 @@
         "in": "query",
         "schema": {
           "type": "integer",
-          "minimum": 1
+          "minimum": 1,
+          "maximum": 2147483647
         }
       },
       "DistrictId": {
@@ -699,7 +1777,8 @@
         "in": "query",
         "schema": {
           "type": "integer",
-          "minimum": 1
+          "minimum": 1,
+          "maximum": 2147483647
         }
       },
       "SubstationId": {
@@ -707,7 +1786,8 @@
         "in": "query",
         "schema": {
           "type": "integer",
-          "minimum": 1
+          "minimum": 1,
+          "maximum": 2147483647
         }
       },
       "SiteId": {
@@ -716,6 +1796,22 @@
         "schema": {
           "type": "integer",
           "minimum": 1
+        }
+      },
+      "IfMatch": {
+        "name": "If-Match",
+        "in": "header",
+        "description": "Strong comparison; mismatching tags return 412 after access checks. Supports an entity-tag list or *.",
+        "schema": {
+          "type": "string"
+        }
+      },
+      "IfNoneMatch": {
+        "name": "If-None-Match",
+        "in": "header",
+        "description": "Weak comparison; a matching tag returns an empty 304 after access checks. Evaluated after If-Match.",
+        "schema": {
+          "type": "string"
         }
       }
     },
@@ -839,7 +1935,7 @@
         }
       },
       "PreconditionFailed": {
-        "description": "A GET If-Match condition does not match the current representation (I3)",
+        "description": "The GET If-Match condition fails after authentication and authorization (strong comparison).",
         "headers": {
           "X-Request-Id": {
             "$ref": "#/components/headers/RequestId"
@@ -899,13 +1995,16 @@
         }
       },
       "NotModified": {
-        "description": "Current representation; empty response body (introduced in I3)",
+        "description": "Current representation; empty response body. Access checks run before ETag comparison.",
         "headers": {
           "X-Request-Id": {
             "$ref": "#/components/headers/RequestId"
           },
           "ETag": {
             "$ref": "#/components/headers/ETag"
+          },
+          "Vary": {
+            "$ref": "#/components/headers/Vary"
           }
         }
       }

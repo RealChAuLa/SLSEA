@@ -6,18 +6,43 @@ principals for devices and staff, and Vercel hosting. [project.md](project.md)
 defines the contract; [implementation_plan.md](implementation_plan.md) defines
 the increments.
 
-**Current increment: I2 Authentication and policy, verified. I3 is authorized next.**
-I1's data layer is committed as `12d7aae`. I2 adds `POST /v1/auth/tokens` and
-`GET /v1/users/me`, bearer verification, password-version revocation, scope/type
-gates, jurisdiction policy and hierarchy lookup. All 93 tests passed, including
-database integration checks. Build, lint and OpenAPI validation passed. Public
-health/docs remain database-free; the full reference seed and its 240 device
-tokens were restored after testing.
+**Current increment: I3 Hierarchy reads, verified. I4 has not started.**
+I1's data layer is committed as `12d7aae`; I2 authentication/policy as `58a0bc0`
+with tag `i2-auth-policy`. I3 exposes the complete province → district → substation
+→ installation read hierarchy, scoped lists/filters, pagination, sorting, and
+conditional GET. All 110 tests passed across 14 suites; build, lint and OpenAPI
+validation passed. Public health/docs remain database-free. Checks used the
+owner's provided Neon database with no Docker or local database, and the full
+reference seed with 240 verified device tokens was restored afterward.
 
 Log in with any seeded email listed in Swagger and the demo password
 `Solar#Demo2026`. Send the returned `access_token` as `Authorization: Bearer ...`
 to `/v1/users/me`. Responses expose only the public profile fields. Device tokens
 cannot call user or hierarchy read endpoints.
+
+Available hierarchy GETs: `/v1/provinces`, `/v1/provinces/{provinceId}`,
+`/v1/provinces/{provinceId}/districts`, `/v1/districts/{districtId}`,
+`/v1/districts/{districtId}/grid-substations`,
+`/v1/grid-substations/{substationId}`,
+`/v1/grid-substations/{substationId}/installations`, `/v1/installations`, and
+`/v1/installations/{siteId}`. Every domain GET requires a user bearer token;
+hierarchy GETs require `generation:read`, and the own profile requires
+`account:manage`. District callers may navigate through their parent province's
+metadata, while child lists stay restricted to their district.
+
+Collections accept `page`, `page_size`, and `sort=name|-name`. Installations also
+accept `province_id`, `district_id`, and `substation_id`; filters are intersected
+with the caller's scope. Unknown query parameters and invalid IDs are rejected.
+Lists return `data`, `pagination`, absolute `links`, and a `Link` header. Empty
+lists use `total_pages: 0` with first/last pointing to page 1; pages beyond the end
+have empty data and a `prev` link to the last real page. Name ties use ascending
+primary key order. Pagination honors the forwarded protocol/host.
+
+GETs emit a strong ETag. Send `If-None-Match` to receive an empty `304` for the
+same representation, or `If-Match` to require a matching representation (`412`
+on mismatch). Authentication, token revocation, validation and jurisdiction
+checks run first. Strong/weak comparisons and evaluation order follow
+[RFC 9110](https://www.rfc-editor.org/rfc/rfc9110.html#section-13.2).
 
 ## Local setup
 
@@ -94,19 +119,21 @@ I1's database/token/seed settings are loaded and Zod-validated by
 health/docs imports remain database-free. All error messages identify variable
 names without printing credential values.
 
-| I1 variable                  | Use / default                                                              |
-| ---------------------------- | -------------------------------------------------------------------------- |
-| `DATABASE_URL`               | Neon pooled URL for the runtime singleton                                  |
-| `DIRECT_URL`                 | Non-pooled URL for migrations and seed; same database as runtime           |
-| `TEST_DATABASE_URL`          | Direct URL for a different Neon test branch or disposable PostgreSQL       |
-| `TEST_ALLOW_SHARED_DATABASE` | `no`; explicit `yes` permits destructive tests on the application database |
-| `JWT_SECRET`                 | At least 32 random bytes, provided privately                               |
-| `JWT_ISSUER`, `JWT_AUDIENCE` | Both default to `slsea-solar-api`                                          |
-| `USER_TOKEN_TTL_SECONDS`     | Positive integer, default 3600                                             |
-| `DEVICE_TOKEN_TTL_DAYS`      | Positive integer, default 365                                              |
-| `SEED_DEMO_PASSWORD`         | `Solar#Demo2026`; quote values containing `#` in dotenv files              |
-| `SEED_RANDOM`                | Unsigned 32-bit integer, default 20260601                                  |
-| `SEED_CONFIRM`               | `no`; optional `yes` replaces the CLI confirmation flag                    |
+| I1 variable                  | Use / default                                                                |
+| ---------------------------- | ---------------------------------------------------------------------------- |
+| `DATABASE_URL`               | Neon pooled URL for the runtime singleton                                    |
+| `DIRECT_URL`                 | Non-pooled URL for migrations and seed; same database as runtime             |
+| `TEST_DATABASE_URL`          | Direct URL for a different Neon test branch or disposable PostgreSQL         |
+| `TEST_ALLOW_SHARED_DATABASE` | `no`; explicit `yes` permits destructive tests on the application database   |
+| `JWT_SECRET`                 | At least 32 random bytes, provided privately                                 |
+| `JWT_ISSUER`, `JWT_AUDIENCE` | Both default to `slsea-solar-api`                                            |
+| `USER_TOKEN_TTL_SECONDS`     | Positive integer, default 3600                                               |
+| `DEVICE_TOKEN_TTL_DAYS`      | Positive integer, default 365                                                |
+| `SEED_DEMO_PASSWORD`         | `Solar#Demo2026`; quote values containing `#` in dotenv files                |
+| `SEED_RANDOM`                | Unsigned 32-bit integer, default 20260601                                    |
+| `SEED_CONFIRM`               | `no`; optional `yes` replaces the CLI confirmation flag                      |
+| `DEFAULT_PAGE_SIZE`          | Default collection page size, 50; positive and no greater than MAX_PAGE_SIZE |
+| `MAX_PAGE_SIZE`              | Maximum collection page size, 500; positive and capped at 500                |
 
 The Neon reference supplied by the owner selects a production branch. Its pooled
 connection is kept only in the ignored local `.env`. At the owner's explicit
@@ -118,8 +145,8 @@ No `neon login`, global skills/MCP installation,
 link, or `neon deploy` is required for this Prisma implementation or was executed.
 Project ID reference: `summer-thunder-32230894`.
 
-`.env.example` also reserves `STALE_AFTER_MINUTES`, `DEFAULT_PAGE_SIZE`,
-`MAX_PAGE_SIZE`, `MAX_POWER_KW`, and `API_BASE_URL` for later increments.
+`.env.example` also reserves `STALE_AFTER_MINUTES`, `MAX_POWER_KW`, and
+`API_BASE_URL` for later increments.
 
 ## I1 owner database commands
 
@@ -194,7 +221,7 @@ npm run spec:lint
 npm test
 ```
 
-The owner requested and authorized the I1 completion review on 2026-10-09.
+I1, I2 and I3 have been verified locally against the supplied Neon database.
 
 Tests cover the public endpoints, uniform errors, security headers, negotiation,
 method guards, JSON/body limits, CORS, configuration, safe logging, clock control,
@@ -210,7 +237,13 @@ permits the same database when the owner authorizes it. Integration tests trunca
 the reference tables and load the compact test dataset. After testing on the
 shared database, run `npm run seed -- --yes` to restore the full reference dataset
 and its device credentials. No tests were run during initial I1 authoring;
-the subsequent review passed all 73 tests and restored the full dataset.
+the subsequent I1 review passed all 73 tests. I2/I3 bring the suite to 110 tests,
+covering seven-user login, token revocation, the jurisdiction matrix, every I3
+endpoint and method guard, filtering, sorting, pagination and conditional ordering.
+The full reference dataset was restored after verification. A default-app smoke
+check passed all seven logins and verified scoped full-scale counts, cached 304
+responses, health/docs, and unauthenticated denial. Remote CI is unverified for
+the new local increments.
 CI runs the same gates on Node 24 with a disposable PostgreSQL 17 service and a
 separate `TEST_DATABASE_URL`.
 The CI password is a public fixture for the disposable service, never a deployment
