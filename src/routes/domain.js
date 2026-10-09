@@ -9,6 +9,7 @@ import { ApiError } from '../errors/api-error.js';
 import { getAtomic, getCollection } from '../services/hierarchy-read.js';
 import { sendConditional } from '../utils/conditional.js';
 import { paginationLinkHeader } from '../utils/pagination.js';
+import { registerReadingRoutes } from './readings.js';
 
 function emptyDomainQuery(req, _res, next) {
   if (Object.keys(req.query).length) {
@@ -25,7 +26,7 @@ function emptyDomainQuery(req, _res, next) {
 
 export function registerDomainRoutes(
   app,
-  { db, tokens = { signUserToken, verifyToken } } = {},
+  { db, tokens = { signUserToken, verifyToken }, clock } = {},
 ) {
   const getDb = async () => db ?? (await import('../db.js')).db;
   const auth = authenticate({ getDb, tokens });
@@ -92,4 +93,5 @@ export function registerDomainRoutes(
   );
   collection('/v1/installations', 'installation', { allowFilters: true });
   atomic('/v1/installations/:siteId', 'installation', 'siteId');
+  registerReadingRoutes(app, { getDb, reads, clock });
 }

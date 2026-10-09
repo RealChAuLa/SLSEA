@@ -8,7 +8,13 @@ const userFields = {
   jurisdiction_id: true,
 };
 
-export async function selfCheckReferenceData(db, dataset, tokenFile, tokens) {
+export async function selfCheckReferenceData(
+  db,
+  dataset,
+  tokenFile,
+  tokens,
+  { expectedReadings = 0 } = {},
+) {
   const [
     provinceCount,
     districtCount,
@@ -39,7 +45,7 @@ export async function selfCheckReferenceData(db, dataset, tokenFile, tokens) {
       dataset.substations.length,
       dataset.installations.length,
       dataset.users.length,
-      0,
+      expectedReadings,
     ],
     'Reference seed counts do not match the chosen scale.',
   );

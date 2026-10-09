@@ -16,6 +16,37 @@ router.get('/conditional', (req, res) =>
   sendConditional(req, res, { value: 1 }),
 );
 const app = createApp({ logger, router });
+router.get('/dated', (req, res) =>
+  sendConditional(
+    req,
+    res,
+    { value: 1 },
+    { lastModified: new Date('2026-10-09T12:00:00.987Z') },
+  ),
+);
+
+test('Last-Modified compares HTTP-date seconds and is subordinate to entity tags', async () => {
+  const res = await request(app).get('/dated').expect(200);
+  expect(res.headers['last-modified']).toBe('Fri, 09 Oct 2026 12:00:00 GMT');
+  await request(app)
+    .get('/dated')
+    .set('If-Modified-Since', res.headers['last-modified'])
+    .expect(304);
+  await request(app)
+    .get('/dated')
+    .set('If-Modified-Since', '2099-01-01T00:00:00Z')
+    .expect(200);
+  await request(app)
+    .get('/dated')
+    .set('If-Modified-Since', res.headers['last-modified'])
+    .set('If-None-Match', '"other"')
+    .expect(200);
+  await request(app)
+    .get('/dated')
+    .set('If-Modified-Since', res.headers['last-modified'])
+    .set('If-Match', '"other"')
+    .expect(412);
+});
 test('conditional requests use strong If-Match, weak If-None-Match and RFC precedence', async () => {
   const res = await request(app).get('/conditional').expect(200);
   const etag = res.headers.etag;

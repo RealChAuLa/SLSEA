@@ -17,6 +17,7 @@ export function createApp({
   router,
   db,
   tokens,
+  clock,
 } = {}) {
   const app = express();
   app.disable('x-powered-by');
@@ -82,7 +83,7 @@ export function createApp({
     }),
   );
   registerPublicRoutes(app);
-  registerDomainRoutes(app, { db, tokens });
+  registerDomainRoutes(app, { db, tokens, clock });
   if (router) app.use(router);
   app.use((_req, _res, next) =>
     next(

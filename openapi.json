@@ -2,8 +2,8 @@
   "openapi": "3.0.3",
   "info": {
     "title": "SLSEA Solar Generation Data API",
-    "version": "0.3.0",
-    "description": "I3 Hierarchy reads, authentication and policy. Health and documentation remain public.\nDomain endpoints use /v1 and JWT bearer authentication. Every user operation\nrequires its documented scope; all errors use the Error schema.\nDemo password: Solar#Demo2026 (all seven seeded users).\nDemo logins: national.operator@slsea.lk, national.analyst@slsea.lk,\nwestern.province@slsea.lk, central.province@slsea.lk,\ncolombo.district@slsea.lk, gampaha.district@slsea.lk, kandy.district@slsea.lk.\n",
+    "version": "0.4.0",
+    "description": "I4 Readings history, hierarchy, authentication and policy. Health and documentation remain public.\nDomain endpoints use /v1 and JWT bearer authentication. Every user operation\nrequires its documented scope; all errors use the Error schema.\nDemo password: Solar#Demo2026 (all seven seeded users).\nDemo logins: national.operator@slsea.lk, national.analyst@slsea.lk,\nwestern.province@slsea.lk, central.province@slsea.lk,\ncolombo.district@slsea.lk, gampaha.district@slsea.lk, kandy.district@slsea.lk.\n",
     "license": {
       "name": "Private project; all rights reserved",
       "url": "https://www.energy.gov.lk/"
@@ -36,6 +36,10 @@
     {
       "name": "Hierarchy",
       "description": "Jurisdiction-scoped provinces, districts, substations and installations"
+    },
+    {
+      "name": "Readings",
+      "description": "Scoped analytical reading history; ingestion is added in I6"
     }
   ],
   "paths": {
@@ -1210,6 +1214,324 @@
           }
         }
       }
+    },
+    "/v1/installations/{siteId}/readings": {
+      "get": {
+        "operationId": "listSiteReadings",
+        "tags": [
+          "Readings"
+        ],
+        "summary": "Read scoped measurement history",
+        "description": "Requires user token and generation:read. Unknown query fields are rejected. Parent and each filter are resolved/authorized first; filters only narrow. UTC output; from inclusive and to exclusive. Site history from/to are optional with no default window. Sort defaults to newest first. Last-Modified is newest timestamp on the selected page and is omitted for empty pages. Encode + as %2B in query offsets; example: ?from=2026-10-09T00:00:00%2B05:30.",
+        "parameters": [
+          {
+            "name": "siteId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 2147483647
+            }
+          },
+          {
+            "$ref": "#/components/parameters/Page"
+          },
+          {
+            "$ref": "#/components/parameters/PageSize"
+          },
+          {
+            "$ref": "#/components/parameters/ReadingSort"
+          },
+          {
+            "$ref": "#/components/parameters/From"
+          },
+          {
+            "$ref": "#/components/parameters/To"
+          },
+          {
+            "$ref": "#/components/parameters/IfMatch"
+          },
+          {
+            "$ref": "#/components/parameters/IfNoneMatch"
+          },
+          {
+            "$ref": "#/components/parameters/IfModifiedSince"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Paginated measurement history",
+            "headers": {
+              "X-Request-Id": {
+                "$ref": "#/components/headers/RequestId"
+              },
+              "ETag": {
+                "$ref": "#/components/headers/ETag"
+              },
+              "Vary": {
+                "$ref": "#/components/headers/Vary"
+              },
+              "Cache-Control": {
+                "$ref": "#/components/headers/CacheControl"
+              },
+              "Last-Modified": {
+                "$ref": "#/components/headers/LastModified"
+              },
+              "Link": {
+                "$ref": "#/components/headers/Link"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ReadingCollection"
+                }
+              }
+            }
+          },
+          "304": {
+            "$ref": "#/components/responses/NotModified"
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "405": {
+            "$ref": "#/components/responses/MethodNotAllowed"
+          },
+          "406": {
+            "$ref": "#/components/responses/NotAcceptable"
+          },
+          "412": {
+            "$ref": "#/components/responses/PreconditionFailed"
+          },
+          "415": {
+            "$ref": "#/components/responses/UnsupportedMediaType"
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalError"
+          }
+        }
+      }
+    },
+    "/v1/installations/{siteId}/readings/{timestamp}": {
+      "get": {
+        "operationId": "getReading",
+        "tags": [
+          "Readings"
+        ],
+        "summary": "Read one measurement",
+        "description": "Requires user token and generation:read. Unknown query fields are rejected. Parent and each filter are resolved/authorized first; filters only narrow. UTC output; from inclusive and to exclusive. Site history from/to are optional with no default window. Sort defaults to newest first. Last-Modified is newest timestamp on the selected page and is omitted for empty pages. Encode + as %2B in query offsets; example: ?from=2026-10-09T00:00:00%2B05:30.",
+        "parameters": [
+          {
+            "name": "siteId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 2147483647
+            }
+          },
+          {
+            "name": "timestamp",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "date-time"
+            },
+            "description": "URL-encoded ISO timestamp with Z or timezone offset; canonical responses use UTC."
+          },
+          {
+            "$ref": "#/components/parameters/IfMatch"
+          },
+          {
+            "$ref": "#/components/parameters/IfNoneMatch"
+          },
+          {
+            "$ref": "#/components/parameters/IfModifiedSince"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Reading measurement",
+            "headers": {
+              "X-Request-Id": {
+                "$ref": "#/components/headers/RequestId"
+              },
+              "ETag": {
+                "$ref": "#/components/headers/ETag"
+              },
+              "Vary": {
+                "$ref": "#/components/headers/Vary"
+              },
+              "Cache-Control": {
+                "$ref": "#/components/headers/CacheControl"
+              },
+              "Last-Modified": {
+                "$ref": "#/components/headers/LastModified"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GenerationReading"
+                }
+              }
+            }
+          },
+          "304": {
+            "$ref": "#/components/responses/NotModified"
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "405": {
+            "$ref": "#/components/responses/MethodNotAllowed"
+          },
+          "406": {
+            "$ref": "#/components/responses/NotAcceptable"
+          },
+          "412": {
+            "$ref": "#/components/responses/PreconditionFailed"
+          },
+          "415": {
+            "$ref": "#/components/responses/UnsupportedMediaType"
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalError"
+          }
+        }
+      }
+    },
+    "/v1/readings": {
+      "get": {
+        "operationId": "listReadings",
+        "tags": [
+          "Readings"
+        ],
+        "summary": "Read scoped measurement history",
+        "description": "Requires user token and generation:read. Unknown query fields are rejected. Parent and each filter are resolved/authorized first; filters only narrow. UTC output; from inclusive and to exclusive. Default to=now, from=to-24h; maximum span 31 days. Filters are ANDed. Sort defaults to newest first. Last-Modified is newest timestamp on the selected page and is omitted for empty pages. Encode + as %2B in query offsets; example: ?from=2026-10-09T00:00:00%2B05:30.",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/Page"
+          },
+          {
+            "$ref": "#/components/parameters/PageSize"
+          },
+          {
+            "$ref": "#/components/parameters/ReadingSort"
+          },
+          {
+            "$ref": "#/components/parameters/From"
+          },
+          {
+            "$ref": "#/components/parameters/To"
+          },
+          {
+            "$ref": "#/components/parameters/ProvinceId"
+          },
+          {
+            "$ref": "#/components/parameters/DistrictId"
+          },
+          {
+            "$ref": "#/components/parameters/SubstationId"
+          },
+          {
+            "$ref": "#/components/parameters/SiteId"
+          },
+          {
+            "$ref": "#/components/parameters/IfMatch"
+          },
+          {
+            "$ref": "#/components/parameters/IfNoneMatch"
+          },
+          {
+            "$ref": "#/components/parameters/IfModifiedSince"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Paginated measurement history",
+            "headers": {
+              "X-Request-Id": {
+                "$ref": "#/components/headers/RequestId"
+              },
+              "ETag": {
+                "$ref": "#/components/headers/ETag"
+              },
+              "Vary": {
+                "$ref": "#/components/headers/Vary"
+              },
+              "Cache-Control": {
+                "$ref": "#/components/headers/CacheControl"
+              },
+              "Last-Modified": {
+                "$ref": "#/components/headers/LastModified"
+              },
+              "Link": {
+                "$ref": "#/components/headers/Link"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ReadingCollection"
+                }
+              }
+            }
+          },
+          "304": {
+            "$ref": "#/components/responses/NotModified"
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "405": {
+            "$ref": "#/components/responses/MethodNotAllowed"
+          },
+          "406": {
+            "$ref": "#/components/responses/NotAcceptable"
+          },
+          "412": {
+            "$ref": "#/components/responses/PreconditionFailed"
+          },
+          "415": {
+            "$ref": "#/components/responses/UnsupportedMediaType"
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalError"
+          }
+        }
+      }
     }
   },
   "components": {
@@ -1251,7 +1573,7 @@
         }
       },
       "LastModified": {
-        "description": "Timestamp of the source data (introduced in I4)",
+        "description": "Newest measurement timestamp in a reading page or the atomic reading timestamp, in HTTP date format. Omitted for empty pages and metadata resources.",
         "schema": {
           "type": "string"
         }
@@ -1709,6 +2031,67 @@
             "$ref": "#/components/schemas/Links"
           }
         }
+      },
+      "GenerationReading": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "site_id",
+          "meter_id",
+          "timestamp",
+          "power_Kw",
+          "cumulative_energy_Kwh",
+          "voltage"
+        ],
+        "properties": {
+          "site_id": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "meter_id": {
+            "type": "string"
+          },
+          "timestamp": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "power_Kw": {
+            "type": "number",
+            "minimum": 0
+          },
+          "cumulative_energy_Kwh": {
+            "type": "number",
+            "minimum": 0
+          },
+          "voltage": {
+            "type": "number",
+            "exclusiveMinimum": true,
+            "minimum": 0
+          }
+        }
+      },
+      "ReadingCollection": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "data",
+          "pagination",
+          "links"
+        ],
+        "properties": {
+          "data": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/GenerationReading"
+            }
+          },
+          "pagination": {
+            "$ref": "#/components/schemas/Pagination"
+          },
+          "links": {
+            "$ref": "#/components/schemas/Links"
+          }
+        }
       }
     },
     "parameters": {
@@ -1748,20 +2131,22 @@
       "From": {
         "name": "from",
         "in": "query",
-        "description": "Inclusive ISO-8601 timestamp with Z or a timezone offset",
+        "description": "Inclusive ISO-8601 timestamp with Z or a timezone offset; offsets with + must encode it as %2B in the URL.",
         "schema": {
           "type": "string",
           "format": "date-time"
-        }
+        },
+        "example": "2026-10-09T00:00:00+05:30"
       },
       "To": {
         "name": "to",
         "in": "query",
-        "description": "Exclusive ISO-8601 timestamp with Z or a timezone offset",
+        "description": "Exclusive ISO-8601 timestamp with Z or a timezone offset; offsets with + must encode it as %2B in the URL.",
         "schema": {
           "type": "string",
           "format": "date-time"
-        }
+        },
+        "example": "2026-10-10T00:00:00+05:30"
       },
       "ProvinceId": {
         "name": "province_id",
@@ -1813,6 +2198,27 @@
         "schema": {
           "type": "string"
         }
+      },
+      "ReadingSort": {
+        "name": "sort",
+        "in": "query",
+        "schema": {
+          "type": "string",
+          "enum": [
+            "timestamp",
+            "-timestamp"
+          ],
+          "default": "-timestamp"
+        },
+        "description": "Chronological ordering with meter_id ascending to break timestamp ties."
+      },
+      "IfModifiedSince": {
+        "name": "If-Modified-Since",
+        "in": "header",
+        "schema": {
+          "type": "string"
+        },
+        "description": "HTTP date. Honored only when Last-Modified exists and If-None-Match is absent. All access checks and If-Match run first."
       }
     },
     "responses": {
@@ -2005,6 +2411,9 @@
           },
           "Vary": {
             "$ref": "#/components/headers/Vary"
+          },
+          "Last-Modified": {
+            "$ref": "#/components/headers/LastModified"
           }
         }
       }

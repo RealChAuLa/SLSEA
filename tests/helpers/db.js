@@ -8,8 +8,12 @@ import { createDatabaseClient } from '../../src/database-client.js';
 import { createTokenUtils } from '../../src/utils/jwt.js';
 import { buildDataset } from '../../prisma/seed-lib/dataset.js';
 import { seedReferenceData } from '../../prisma/seed-lib/reference.js';
+import { seedReadings } from '../../prisma/seed-lib/history.js';
 
-export async function createTestDatabase() {
+export async function createTestDatabase({
+  history = false,
+  endTimestamp,
+} = {}) {
   // No URL fallback. Shared targets require the owner's explicit config opt-in.
   const { testDatabaseUrl } = loadTestDatabaseConfig();
   const result = spawnSync(
@@ -48,7 +52,10 @@ export async function createTestDatabase() {
       seedDemoPassword: 'Fixture#Password2026',
       tokens,
     });
-    return { db, dataset, tokens, tokenFile };
+    const historySummary = history
+      ? await seedReadings(db, dataset, { scale: 'test', endTimestamp })
+      : undefined;
+    return { db, dataset, tokens, tokenFile, historySummary };
   } catch (error) {
     await db.$disconnect();
     throw error;

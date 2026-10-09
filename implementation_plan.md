@@ -209,18 +209,20 @@ flowchart TD
 
 ## I4: Readings history
 
+**Status (2026-10-09):** Implemented and verified: 120 tests across 16 suites, build, lint, OpenAPI checks, and full-scale Neon acceptance passed. Full seed contains 160,584 readings (238 normal sites × 672 plus 648 offline readings; empty site has none). All 240 device tokens verified. Query plans use generation_readings_pkey and generation_readings_timestamp_idx. History GET plus conditional request took approximately 1.4 seconds including network latency. Completion tag: i4-readings-history. I5 is authorized next; remote CI is unverified.
+
 **Goal:** seed the time series and expose the analytical history.
 **Builds on:** I3. **Refs:** §3.1, §4.3–4.5, §6.5, §6.8.
 
 **Tasks**
-- [ ] `prisma/seed-lib/generator.js`: pure deterministic generator from §6.5 — `siteCapacity(site_id)`, `solarCurve(localHour)`, cloud factor (per site per day with smooth intra-day walk), `generateSeries({ site_id, endTimestamp, count, startEnergy })`, plus the helpers `startEnergy(site_id)` and 15-minute boundary flooring. It must be reusable by `seed:extend` (I7) and `simulate` (I6).
-- [ ] `seed.js` part 2: after reference data, generate and insert readings (672 per site; test scale 192), batches ≤ 5,000 rows via `createMany`; fixtures: offline site (readings stop 6 h before `end`), empty site (none); tokens and self-check part 2 (§6.8: 672 per non-fixture site, offline gap, empty site, cumulative monotonic, no duplicates).
-- [ ] Readings serializer (`site_id`, `meter_id`, `timestamp`, `power_Kw`, `cumulative_energy_Kwh`, `voltage`; `site_id` via join).
-- [ ] `GET /v1/installations/{siteId}/readings`: parent check with `canRead`; `from`/`to` (optional here), `sort` (`timestamp`/`-timestamp`, default `-timestamp`), pagination; reading lookup by `meter_id` resolved from `site_id`.
-- [ ] `GET /v1/installations/{siteId}/readings/{timestamp}`: parse the path timestamp (ISO-8601, URL-decoded) → 400 if invalid; 404 if absent.
-- [ ] `GET /v1/readings`: filters `province_id`, `district_id`, `substation_id`, `site_id`, `from`, `to`; defaults `to = now`, `from = to − 24h`; span cap 31 days (→ `400 INVALID_QUERY`); intersect with the caller's jurisdiction; filter outside jurisdiction → 403; build with relation filters (readings → installation → substation → district → province) and verify the plan uses the primary-key and `timestamp` indexes.
-- [ ] `Last-Modified` (newest `timestamp` in the page, or the reading's own timestamp) and `If-Modified-Since` → 304, added to `conditional.js`.
-- [ ] Document that `+` in a query-string offset must be encoded as `%2B` (OpenAPI examples use it).
+- [x] `prisma/seed-lib/generator.js`: pure deterministic generator from §6.5 — `siteCapacity(site_id)`, `solarCurve(localHour)`, cloud factor (per site per day with smooth intra-day walk), `generateSeries({ site_id, endTimestamp, count, startEnergy })`, plus the helpers `startEnergy(site_id)` and 15-minute boundary flooring. It must be reusable by `seed:extend` (I7) and `simulate` (I6).
+- [x] `seed.js` part 2: after reference data, generate and insert readings (672 per site; test scale 192), batches ≤ 5,000 rows via `createMany`; fixtures: offline site (readings stop 6 h before `end`), empty site (none); tokens and self-check part 2 (§6.8: 672 per non-fixture site, offline gap, empty site, cumulative monotonic, no duplicates).
+- [x] Readings serializer (`site_id`, `meter_id`, `timestamp`, `power_Kw`, `cumulative_energy_Kwh`, `voltage`; `site_id` via join).
+- [x] `GET /v1/installations/{siteId}/readings`: parent check with `canRead`; `from`/`to` (optional here), `sort` (`timestamp`/`-timestamp`, default `-timestamp`), pagination; reading lookup by `meter_id` resolved from `site_id`.
+- [x] `GET /v1/installations/{siteId}/readings/{timestamp}`: parse the path timestamp (ISO-8601, URL-decoded) → 400 if invalid; 404 if absent.
+- [x] `GET /v1/readings`: filters `province_id`, `district_id`, `substation_id`, `site_id`, `from`, `to`; defaults `to = now`, `from = to − 24h`; span cap 31 days (→ `400 INVALID_QUERY`); intersect with the caller's jurisdiction; filter outside jurisdiction → 403; build with relation filters (readings → installation → substation → district → province) and verify the plan uses the primary-key and `timestamp` indexes.
+- [x] `Last-Modified` (newest `timestamp` in the page, or the reading's own timestamp) and `If-Modified-Since` → 304, added to `conditional.js`.
+- [x] Document that `+` in a query-string offset must be encoded as `%2B` (OpenAPI examples use it).
 
 **OpenAPI:** the three endpoints, `from`/`to` parameters, `Last-Modified`/`If-Modified-Since`.
 

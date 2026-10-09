@@ -1,14 +1,21 @@
 openapi: 3.0.3
 info:
   title: SLSEA Solar Generation Data API
-  version: 0.3.0
-  description: |
-    I3 Hierarchy reads, authentication and policy. Health and documentation remain public.
+  version: 0.4.0
+  description: >
+    I4 Readings history, hierarchy, authentication and policy. Health and documentation remain
+    public.
+
     Domain endpoints use /v1 and JWT bearer authentication. Every user operation
+
     requires its documented scope; all errors use the Error schema.
+
     Demo password: Solar#Demo2026 (all seven seeded users).
+
     Demo logins: national.operator@slsea.lk, national.analyst@slsea.lk,
+
     western.province@slsea.lk, central.province@slsea.lk,
+
     colombo.district@slsea.lk, gampaha.district@slsea.lk, kandy.district@slsea.lk.
   license:
     name: Private project; all rights reserved
@@ -27,6 +34,8 @@ tags:
     description: User login and own profile
   - name: Hierarchy
     description: Jurisdiction-scoped provinces, districts, substations and installations
+  - name: Readings
+    description: Scoped analytical reading history; ingestion is added in I6
 paths:
   /health:
     get:
@@ -694,6 +703,178 @@ paths:
           $ref: '#/components/responses/PreconditionFailed'
         '415': *a21
         '500': *a22
+  /v1/installations/{siteId}/readings:
+    get:
+      operationId: listSiteReadings
+      tags:
+        - Readings
+      summary: Read scoped measurement history
+      description:
+        'Requires user token and generation:read. Unknown query fields are rejected. Parent and
+        each filter are resolved/authorized first; filters only narrow. UTC output; from inclusive
+        and to exclusive. Site history from/to are optional with no default window. Sort defaults to
+        newest first. Last-Modified is newest timestamp on the selected page and is omitted for
+        empty pages. Encode + as %2B in query offsets; example: ?from=2026-10-09T00:00:00%2B05:30.'
+      parameters:
+        - name: siteId
+          in: path
+          required: true
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 2147483647
+        - $ref: '#/components/parameters/Page'
+        - $ref: '#/components/parameters/PageSize'
+        - $ref: '#/components/parameters/ReadingSort'
+        - $ref: '#/components/parameters/From'
+        - $ref: '#/components/parameters/To'
+        - $ref: '#/components/parameters/IfMatch'
+        - $ref: '#/components/parameters/IfNoneMatch'
+        - $ref: '#/components/parameters/IfModifiedSince'
+      responses:
+        '200':
+          description: Paginated measurement history
+          headers:
+            X-Request-Id: &a27
+              $ref: '#/components/headers/RequestId'
+            ETag: &a28
+              $ref: '#/components/headers/ETag'
+            Vary: &a29
+              $ref: '#/components/headers/Vary'
+            Cache-Control: &a30
+              $ref: '#/components/headers/CacheControl'
+            Last-Modified: &a31
+              $ref: '#/components/headers/LastModified'
+            Link:
+              $ref: '#/components/headers/Link'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ReadingCollection'
+        '304': &a32
+          $ref: '#/components/responses/NotModified'
+        '400': &a33
+          $ref: '#/components/responses/BadRequest'
+        '401': &a34
+          $ref: '#/components/responses/Unauthorized'
+        '403': &a35
+          $ref: '#/components/responses/Forbidden'
+        '404': &a36
+          $ref: '#/components/responses/NotFound'
+        '405': &a37
+          $ref: '#/components/responses/MethodNotAllowed'
+        '406': &a38
+          $ref: '#/components/responses/NotAcceptable'
+        '412': &a39
+          $ref: '#/components/responses/PreconditionFailed'
+        '415': &a40
+          $ref: '#/components/responses/UnsupportedMediaType'
+        '500': &a41
+          $ref: '#/components/responses/InternalError'
+  /v1/installations/{siteId}/readings/{timestamp}:
+    get:
+      operationId: getReading
+      tags:
+        - Readings
+      summary: Read one measurement
+      description:
+        'Requires user token and generation:read. Unknown query fields are rejected. Parent and
+        each filter are resolved/authorized first; filters only narrow. UTC output; from inclusive
+        and to exclusive. Site history from/to are optional with no default window. Sort defaults to
+        newest first. Last-Modified is newest timestamp on the selected page and is omitted for
+        empty pages. Encode + as %2B in query offsets; example: ?from=2026-10-09T00:00:00%2B05:30.'
+      parameters:
+        - name: siteId
+          in: path
+          required: true
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 2147483647
+        - name: timestamp
+          in: path
+          required: true
+          schema:
+            type: string
+            format: date-time
+          description: URL-encoded ISO timestamp with Z or timezone offset; canonical responses use UTC.
+        - $ref: '#/components/parameters/IfMatch'
+        - $ref: '#/components/parameters/IfNoneMatch'
+        - $ref: '#/components/parameters/IfModifiedSince'
+      responses:
+        '200':
+          description: Reading measurement
+          headers:
+            X-Request-Id: *a27
+            ETag: *a28
+            Vary: *a29
+            Cache-Control: *a30
+            Last-Modified: *a31
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/GenerationReading'
+        '304': *a32
+        '400': *a33
+        '401': *a34
+        '403': *a35
+        '404': *a36
+        '405': *a37
+        '406': *a38
+        '412': *a39
+        '415': *a40
+        '500': *a41
+  /v1/readings:
+    get:
+      operationId: listReadings
+      tags:
+        - Readings
+      summary: Read scoped measurement history
+      description:
+        'Requires user token and generation:read. Unknown query fields are rejected. Parent and
+        each filter are resolved/authorized first; filters only narrow. UTC output; from inclusive
+        and to exclusive. Default to=now, from=to-24h; maximum span 31 days. Filters are ANDed. Sort
+        defaults to newest first. Last-Modified is newest timestamp on the selected page and is
+        omitted for empty pages. Encode + as %2B in query offsets; example:
+        ?from=2026-10-09T00:00:00%2B05:30.'
+      parameters:
+        - $ref: '#/components/parameters/Page'
+        - $ref: '#/components/parameters/PageSize'
+        - $ref: '#/components/parameters/ReadingSort'
+        - $ref: '#/components/parameters/From'
+        - $ref: '#/components/parameters/To'
+        - $ref: '#/components/parameters/ProvinceId'
+        - $ref: '#/components/parameters/DistrictId'
+        - $ref: '#/components/parameters/SubstationId'
+        - $ref: '#/components/parameters/SiteId'
+        - $ref: '#/components/parameters/IfMatch'
+        - $ref: '#/components/parameters/IfNoneMatch'
+        - $ref: '#/components/parameters/IfModifiedSince'
+      responses:
+        '200':
+          description: Paginated measurement history
+          headers:
+            X-Request-Id: *a27
+            ETag: *a28
+            Vary: *a29
+            Cache-Control: *a30
+            Last-Modified: *a31
+            Link:
+              $ref: '#/components/headers/Link'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ReadingCollection'
+        '304': *a32
+        '400': *a33
+        '401': *a34
+        '403': *a35
+        '404': *a36
+        '405': *a37
+        '406': *a38
+        '412': *a39
+        '415': *a40
+        '500': *a41
 components:
   securitySchemes:
     bearerAuth:
@@ -725,7 +906,9 @@ components:
         type: string
         format: uri
     LastModified:
-      description: Timestamp of the source data (introduced in I4)
+      description:
+        Newest measurement timestamp in a reading page or the atomic reading timestamp, in HTTP
+        date format. Omitted for empty pages and metadata resources.
       schema:
         type: string
     Link:
@@ -1045,6 +1228,51 @@ components:
           $ref: '#/components/schemas/Pagination'
         links:
           $ref: '#/components/schemas/Links'
+    GenerationReading:
+      type: object
+      additionalProperties: false
+      required:
+        - site_id
+        - meter_id
+        - timestamp
+        - power_Kw
+        - cumulative_energy_Kwh
+        - voltage
+      properties:
+        site_id:
+          type: integer
+          minimum: 1
+        meter_id:
+          type: string
+        timestamp:
+          type: string
+          format: date-time
+        power_Kw:
+          type: number
+          minimum: 0
+        cumulative_energy_Kwh:
+          type: number
+          minimum: 0
+        voltage:
+          type: number
+          exclusiveMinimum: true
+          minimum: 0
+    ReadingCollection:
+      type: object
+      additionalProperties: false
+      required:
+        - data
+        - pagination
+        - links
+      properties:
+        data:
+          type: array
+          items:
+            $ref: '#/components/schemas/GenerationReading'
+        pagination:
+          $ref: '#/components/schemas/Pagination'
+        links:
+          $ref: '#/components/schemas/Links'
   parameters:
     Page:
       name: page
@@ -1081,17 +1309,23 @@ components:
     From:
       name: from
       in: query
-      description: Inclusive ISO-8601 timestamp with Z or a timezone offset
+      description:
+        Inclusive ISO-8601 timestamp with Z or a timezone offset; offsets with + must encode it
+        as %2B in the URL.
       schema:
         type: string
         format: date-time
+      example: 2026-10-09T00:00:00+05:30
     To:
       name: to
       in: query
-      description: Exclusive ISO-8601 timestamp with Z or a timezone offset
+      description:
+        Exclusive ISO-8601 timestamp with Z or a timezone offset; offsets with + must encode it
+        as %2B in the URL.
       schema:
         type: string
         format: date-time
+      example: 2026-10-10T00:00:00+05:30
     ProvinceId:
       name: province_id
       in: query
@@ -1135,69 +1369,87 @@ components:
         after If-Match.
       schema:
         type: string
+    ReadingSort:
+      name: sort
+      in: query
+      schema:
+        type: string
+        enum:
+          - timestamp
+          - -timestamp
+        default: -timestamp
+      description: Chronological ordering with meter_id ascending to break timestamp ties.
+    IfModifiedSince:
+      name: If-Modified-Since
+      in: header
+      schema:
+        type: string
+      description:
+        HTTP date. Honored only when Last-Modified exists and If-None-Match is absent. All
+        access checks and If-Match run first.
   responses:
     BadRequest:
       description:
         Malformed JSON, invalid input, or body larger than 10 kb (400 VALIDATION_FAILED for
         size; contract has no 413)
-      headers: &a27
+      headers: &a42
         X-Request-Id:
           $ref: '#/components/headers/RequestId'
-      content: &a28
+      content: &a43
         application/json:
           schema:
             $ref: '#/components/schemas/Error'
     Unauthorized:
       description: Missing, invalid, expired, or revoked bearer token
       headers:
-        <<: *a27
+        <<: *a42
         WWW-Authenticate:
           schema:
             type: string
           example: Bearer
-      content: *a28
+      content: *a43
     Forbidden:
       description: Principal lacks the required scope or jurisdiction
-      headers: *a27
-      content: *a28
+      headers: *a42
+      content: *a43
     NotFound:
       description: Unknown resource or route
-      headers: *a27
-      content: *a28
+      headers: *a42
+      content: *a43
     MethodNotAllowed:
       description: Method is unsupported on a known URI
       headers:
-        <<: *a27
+        <<: *a42
         Allow:
           description: Comma-separated supported methods
           schema:
             type: string
           example: GET
-      content: *a28
+      content: *a43
     NotAcceptable:
       description: Accept does not permit the offered representation (JSON, or HTML for /docs)
-      headers: *a27
-      content: *a28
+      headers: *a42
+      content: *a43
     Conflict:
       description: Duplicate reading
-      headers: *a27
-      content: *a28
+      headers: *a42
+      content: *a43
     PreconditionFailed:
       description: The GET If-Match condition fails after authentication and authorization (strong comparison).
-      headers: *a27
-      content: *a28
+      headers: *a42
+      content: *a43
     UnsupportedMediaType:
       description: A write requires application/json, or the JSON charset or encoding is unsupported
-      headers: *a27
-      content: *a28
+      headers: *a42
+      content: *a43
     RateLimited:
       description: Too many requests
-      headers: *a27
-      content: *a28
+      headers: *a42
+      content: *a43
     InternalError:
       description: Unhandled server fault; generic message without implementation details
-      headers: *a27
-      content: *a28
+      headers: *a42
+      content: *a43
     NotModified:
       description: Current representation; empty response body. Access checks run before ETag comparison.
       headers:
@@ -1207,3 +1459,5 @@ components:
           $ref: '#/components/headers/ETag'
         Vary:
           $ref: '#/components/headers/Vary'
+        Last-Modified:
+          $ref: '#/components/headers/LastModified'

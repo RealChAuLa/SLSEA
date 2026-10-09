@@ -6,14 +6,13 @@ principals for devices and staff, and Vercel hosting. [project.md](project.md)
 defines the contract; [implementation_plan.md](implementation_plan.md) defines
 the increments.
 
-**Current increment: I3 Hierarchy reads, verified. I4 has not started.**
-I1's data layer is committed as `12d7aae`; I2 authentication/policy as `58a0bc0`
-with tag `i2-auth-policy`. I3 exposes the complete province → district → substation
-→ installation read hierarchy, scoped lists/filters, pagination, sorting, and
-conditional GET. All 110 tests passed across 14 suites; build, lint and OpenAPI
-validation passed. Public health/docs remain database-free. Checks used the
-owner's provided Neon database with no Docker or local database, and the full
-reference seed with 240 verified device tokens was restored afterward.
+**Current increment: I4 Readings history, verified; I5 is authorized next.**
+I2 authentication/policy (58a0bc0) and I3 hierarchy reads (1874853) are complete.
+I4 adds the three history GETs, deterministic seven-day reading seed and
+Last-Modified/If-Modified-Since. All 120 tests passed across 16 suites; build, lint
+and OpenAPI validation passed. The full supplied Neon database holds 240
+installations and 160,584 readings, with 240 verified device credentials.
+No Docker/local database was used. I6 has not started.
 
 Log in with any seeded email listed in Swagger and the demo password
 `Solar#Demo2026`. Send the returned `access_token` as `Authorization: Bearer ...`
@@ -169,7 +168,9 @@ rows and 7 users; `npm run seed -- --scale test --yes` uses Western/Central,
 the ignored `seed-output/device-tokens.json`. Keep them private.
 
 The reading table and its nonnegative-value CHECK constraint exist in I1, but
-reading generation is reserved for I4. The second migration is hand-written and
+reading generation is now part of the seed: 672 quarter-hour readings per normal
+installation, 648 for the offline fixture (6-hour gap), and none for the empty
+fixture. Test scale uses 192/168/0 respectively. The second migration is hand-written and
 also enforces the national/non-national user jurisdiction invariant. The first
 migration is generated from the schema without connecting to a database.
 
@@ -278,3 +279,19 @@ Complete this checklist as later increments become available:
 - [ ] Verify health, Swagger UI, a user login, and a device POST with `simulate`.
 
 Do not use the placeholder scripts for these future steps in I0.
+
+## Reading history (I4)
+
+GET /v1/installations/{siteId}/readings returns a paginated history; append a
+URL-encoded timestamp for one atomic reading. GET /v1/readings returns the caller's
+scoped history and accepts province_id, district_id, substation_id and site_id.
+Both collections accept from (inclusive), to (exclusive), timestamp/-timestamp
+sort (newest first by default), page and page_size. Root history defaults to the
+last 24 hours and caps the window at 31 days; site history has no default window.
+ISO timestamps require Z or an offset. Encode a positive offset's + as %2B,
+for example ?from=2026-10-09T00:00:00%2B05:30.
+
+Last-Modified is the newest timestamp on the selected page and is absent on empty
+pages. If-Modified-Since uses HTTP dates, follows If-Match, and is ignored when
+If-None-Match is supplied. Authentication and jurisdiction are always checked
+first. POST ingestion and seed:extend remain later-increment placeholders.
