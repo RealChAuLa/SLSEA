@@ -1,0 +1,87 @@
+generator client {
+  provider               = "prisma-client"
+  output                 = "../generated/prisma"
+  moduleFormat           = "esm"
+  generatedFileExtension = "ts"
+  importFileExtension    = "js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+enum JurisdictionType {
+  national
+  provincial
+  district
+}
+
+model Province {
+  province_id Int        @id @default(autoincrement())
+  name        String     @unique
+  districts   District[]
+
+  @@map("provinces")
+}
+
+model District {
+  district_id Int              @id @default(autoincrement())
+  name        String
+  province_id Int
+  province    Province         @relation(fields: [province_id], references: [province_id])
+  substations GridSubstation[]
+
+  @@unique([province_id, name])
+  @@index([province_id])
+  @@map("districts")
+}
+
+model GridSubstation {
+  substation_id Int                 @id @default(autoincrement())
+  name          String
+  district_id   Int
+  district      District            @relation(fields: [district_id], references: [district_id])
+  installations SolarInstallation[]
+
+  @@unique([district_id, name])
+  @@index([district_id])
+  @@map("grid_substations")
+}
+
+model SolarInstallation {
+  site_id       Int                 @id @default(autoincrement())
+  name          String
+  meter_id      String              @unique
+  latitude      Float
+  longitude     Float
+  substation_id Int
+  substation    GridSubstation      @relation(fields: [substation_id], references: [substation_id])
+  readings      GenerationReading[]
+
+  @@index([substation_id])
+  @@map("solar_installations")
+}
+
+model GenerationReading {
+  meter_id              String
+  timestamp             DateTime          @db.Timestamptz(3)
+  power_Kw              Float             @map("power_kw")
+  cumulative_energy_Kwh Float             @map("cumulative_energy_kwh")
+  voltage               Float
+  installation          SolarInstallation @relation(fields: [meter_id], references: [meter_id], onDelete: Restrict)
+
+  @@id([meter_id, timestamp])
+  @@index([timestamp])
+  @@map("generation_readings")
+}
+
+model User {
+  user_id           Int              @id @default(autoincrement())
+  name              String
+  email             String           @unique
+  password_hash     String
+  jurisdiction_type JurisdictionType
+  jurisdiction_id   Int?
+
+  @@map("users")
+}

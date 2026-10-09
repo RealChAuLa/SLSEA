@@ -103,7 +103,7 @@ flowchart TD
 **Tests**
 - `/health` 200; unknown route → 404 uniform body; `PUT /health` → 405 with `Allow: GET`; `Accept: text/html` → 406; `POST` with `text/plain` → 415; malformed JSON → `MALFORMED_JSON`; a shared helper `expectApiError(res, status, code)` used by every later test; importing `api/index.js` does not start a server.
 
-**Status (2026-10-09):** I0 implemented and verified locally (build, lint, OpenAPI lint, 40 tests, and live HTTP smoke checks). Remote GitHub CI remains pending an owner push. Commit/tag were not created because Git write approval was declined. Stop here; I1 requires the owner's explicit instruction.
+**Status (2026-10-09):** I0 implemented and verified locally (build, lint, OpenAPI lint, 40 tests, and live HTTP smoke checks). I0 was subsequently committed as 08420c8 and pushed to origin/master; its tag was not created. Remote GitHub CI is not yet verified. The owner has now authorized I1 authoring with verification deferred.
 
 **Exit criteria:** app runs locally; `/health` and `/docs` work; errors are uniform; CI green. **Tag:** `i0-foundations`.
 
@@ -111,24 +111,26 @@ flowchart TD
 
 ## I1: Data layer
 
+**Status (2026-10-09):** I1 completion review passed: build, lint, OpenAPI lint, and all 73 tests. Both migrations were applied to the owner's provided Neon production database, as explicitly requested; no local database or Docker was used. Test-scale checks passed and the full seed was restored (9 provinces, 25 districts, 30 substations, 240 installations, 7 users, 0 readings). All 240 regenerated device tokens and all 7 demo passwords verified. Missing initial SQL and malformed URL validation were repaired. Commit/tag and remote CI remain pending. I2 has not started.
+
 **Goal:** the database schema, the deterministic seed (reference data + users) and device tokens.
 **Builds on:** I0. **Refs:** §2.3–2.6, §5.1, §6.1–6.4, §6.7, §6.9.
 
 **Tasks**
-- [ ] Install Prisma and set it up for Neon per the pinned version's docs (pooled `DATABASE_URL` for runtime, `DIRECT_URL` for migrations and seeding).
-- [ ] `schema.prisma` with the models from §2.4. First migration from the schema; second **hand-written** migration with the CHECK constraints from §2.5.
-- [ ] `src/db.js`: module-level Prisma client singleton (reuse across invocations).
-- [ ] `src/utils/jwt.js`: `signUserToken`, `signDeviceToken`, `verifyToken` (HS256 pinned, validate `iss`/`aud`/`exp`, reject other algorithms), `pwVersion(password_hash)` = first 16 hex chars of SHA-256. Claims exactly as §5.1.
-- [ ] Password helpers: bcrypt hash/compare (cost ≥ 10).
-- [ ] `prisma/seed-lib/`: pure, DB-free modules:
+- [x] Install Prisma and set it up for Neon per the pinned version's docs (pooled `DATABASE_URL` for runtime, `DIRECT_URL` for migrations and seeding).
+- [x] `schema.prisma` with the models from §2.4. First migration from the schema; second **hand-written** migration with the CHECK constraints from §2.5.
+- [x] `src/db.js`: module-level Prisma client singleton (reuse across invocations).
+- [x] `src/utils/jwt.js`: `signUserToken`, `signDeviceToken`, `verifyToken` (HS256 pinned, validate `iss`/`aud`/`exp`, reject other algorithms), `pwVersion(password_hash)` = first 16 hex chars of SHA-256. Claims exactly as §5.1.
+- [x] Password helpers: bcrypt hash/compare (cost ≥ 10).
+- [x] `prisma/seed-lib/`: pure, DB-free modules:
   - `geography.js`: the table of §6.3 (provinces, districts, centres, substation counts and ids, installation counts, site ranges).
   - `dataset.js`: `buildDataset({ scale })` returning provinces, districts, substations, installations, users arrays (names, `meter_id`, jittered coordinates from the seeded PRNG, round-robin substation assignment, user rows with `jurisdiction_*`).
   - `prng.js`: seeded PRNG (mulberry32) with per-site derivation (`SEED_RANDOM + site_id`).
-- [ ] **Test scale (resolves §6.9).** `buildDataset({ scale: 'test' })`: provinces 1–2 and districts 1–6 and their substations (ids as in full scale); per district the first `min(count, 6)` installations, numbered sequentially from 1 in district order (so ≈36 sites), round-robin over the district's substations; all 7 users; the highest `site_id` is the empty fixture and the second highest the offline fixture; 2 days of readings (added in I4). Tests look entities up by name or by fixture role, never by full-scale ids.
-- [ ] `prisma/seed.js` (CLI, part 1): confirm target (print DB host, require `--yes` or `SEED_CONFIRM=yes`), truncate with identity restart, insert provinces → districts → substations → installations → users with **explicit ids**, bcrypt the demo password once and reuse the hash for all users, reset every sequence to `max(id)`, generate `seed-output/device-tokens.json` (§6.7), run self-check part 1 (§6.8: counts, FKs, `jurisdiction_id` validity, tokens verify and match the DB).
-- [ ] `prisma/seed-tokens.js` and `npm run seed:tokens`: regenerate the tokens file from the installations in the DB.
-- [ ] Register the seed command with Prisma per the pinned version; add `db:migrate`, `seed`, `seed:tokens` scripts.
-- [ ] `tests/helpers/db.js`: connect to `TEST_DATABASE_URL`, apply migrations, reset and load the test-scale dataset (reference part for now).
+- [x] **Test scale (resolves §6.9).** `buildDataset({ scale: 'test' })`: provinces 1–2 and districts 1–6 and their substations (ids as in full scale); per district the first `min(count, 6)` installations, numbered sequentially from 1 in district order (so ≈36 sites), round-robin over the district's substations; all 7 users; the highest `site_id` is the empty fixture and the second highest the offline fixture; 2 days of readings (added in I4). Tests look entities up by name or by fixture role, never by full-scale ids.
+- [x] `prisma/seed.js` (CLI, part 1): confirm target (print DB host, require `--yes` or `SEED_CONFIRM=yes`), truncate with identity restart, insert provinces → districts → substations → installations → users with **explicit ids**, bcrypt the demo password once and reuse the hash for all users, reset every sequence to `max(id)`, generate `seed-output/device-tokens.json` (§6.7), run self-check part 1 (§6.8: counts, FKs, `jurisdiction_id` validity, tokens verify and match the DB).
+- [x] `prisma/seed-tokens.js` and `npm run seed:tokens`: regenerate the tokens file from the installations in the DB.
+- [x] Register the seed command with Prisma per the pinned version; add `db:migrate`, `seed`, `seed:tokens` scripts.
+- [x] `tests/helpers/db.js`: connect to `TEST_DATABASE_URL`, apply migrations, reset and load the test-scale dataset (reference part for now).
 
 **OpenAPI:** none (no endpoints yet).
 

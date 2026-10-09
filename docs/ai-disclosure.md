@@ -1,8 +1,9 @@
 # AI-assisted development disclosure
 
-The owner authorized I0 Foundations only. Project details come from `project.md`;
-delivery order comes from `implementation_plan.md`. The REST API white paper was
-not supplied. No I1 work or owner deployment has been performed.
+The owner authorized I0 Foundations and subsequently authorized I1 authoring with
+verification deferred. Project details come from `project.md`; delivery order
+comes from `implementation_plan.md`. The REST API white paper was not supplied.
+No I2 work or owner deployment has been performed.
 
 ## Assumptions and contract decisions
 
@@ -43,7 +44,7 @@ not supplied. No I1 work or owner deployment has been performed.
   an absolute localhost spec server would misdirect production Swagger requests.
   Prettier split a computed-method test call across lines, triggering ESLint's
   `no-unexpected-multiline` rule.
-- Repair made (commit hash): uncommitted (Git write approval declined); upgraded ESLint to
+- Repair made (commit hash): 08420c8; upgraded ESLint to
   major 10, enabled YAML merge expansion, validate both YAML and JSON, use the
   current origin as the OpenAPI server, and assigned the test request before
   chaining its headers/body to keep both formatting and lint valid.
@@ -60,7 +61,7 @@ not supplied. No I1 work or owner deployment has been performed.
 - Faults found: review identified Express's implicit HEAD/304 behavior and default
   CSP blocking inline Swagger initialization as pitfalls to prevent; input-bearing
   parser faults and exception messages could leak credentials if logged directly.
-- Repair made (commit hash): uncommitted (Git write approval declined); method guard before
+- Repair made (commit hash): 08420c8; method guard before
   GET, explicit representation sending, bootstrap CSP hash, safe parser mappings,
   restricted structured logs. Tests exercise these behaviors.
 - Retained as-is, and why: app import has no listener or database side effects;
@@ -74,7 +75,7 @@ not supplied. No I1 work or owner deployment has been performed.
   checklists, HTTP smoke requests, this disclosure and its saved scope prompt.
 - Faults found: a normal npm invocation failed due to a missing user-level npm CLI;
   successful local gates alone cannot establish a remote CI or deployed status.
-- Repair made (commit hash): uncommitted (Git write approval declined); documented the
+- Repair made (commit hash): 08420c8; documented the
   bundled npm CLI workaround and kept remote verification clearly separate.
 - Retained as-is, and why: later owner steps are marked as future work; the user's
   phase boundary is explicit.
@@ -100,7 +101,83 @@ had not been implemented yet. First implementation run: 40 tests passed.
   checked. Later domain/auth/aggregate pitfalls do not apply yet.
 - `git diff --check`: passed before recording completion.
 - Remote GitHub CI and Vercel deployment remain unverified and owner-controlled.
-- Git recording: the sandbox denied writing `.git/index.lock`; the subsequent
-  staging/commit approval was declined. No I0 commit or `i0-foundations` tag was
-  created. Implementation files remain in the working tree, with no staged changes.
-- Phase boundary: I1 has not started. Wait for the owner's explicit request.
+- Git recording: I0 was subsequently committed as `08420c8` and pushed to
+  `origin/master` after owner authorization. No `i0-foundations` tag was created.
+- I0 phase boundary: work stopped until the owner subsequently requested I1.
+
+## I1 authoring — verification deferred by the owner
+
+On 2026-10-09 the owner requested I1 and explicitly said not to check whether the
+phase is complete until instructed. This supersedes the automatic test-first red
+run and end-of-increment gate execution in the plan. Tests were written before
+implementation, but were not executed. I1 is not marked complete or tagged.
+
+### 2026-10-09 — Prisma schema, migrations, adapter, and environment configuration
+
+- Tool/model: OpenAI Codex, GPT-6.
+- Prompt (verbatim or path): `docs/prompts/i1-data-layer.md`.
+- What was generated: exact blueprint models, Prisma 7.10.0 config, initial SQL
+  migration generated from an empty schema, separate hand-written CHECK
+  constraints, PostgreSQL adapter factory, runtime singleton, private/validated
+  database and token configuration, build-time client generation/compilation.
+- Faults found (vs. blueprint / guidelines): phase review not performed, per owner
+  instruction. Authoring encountered a sandbox-blocked schema-engine download;
+  the download was completed with the required tool approval.
+- Repair made (commit hash): no I1 completion commit yet. Generated Prisma
+  TypeScript is compiled to ESM JavaScript so hand-written source stays plain JS.
+- Retained as-is, and why: Prisma CLI/client/adapter share version 7.10.0; build
+  generation has no database URL fallback and performs no migration or seed.
+
+### 2026-10-09 — Deterministic reference data, seed, and credential utilities
+
+- Tool/model: OpenAI Codex, GPT-6.
+- Prompt (verbatim or path): `docs/prompts/i1-data-layer.md`.
+- What was generated: fixed geography and users, mulberry32 per-site PRNG,
+  full/test-scale dataset, bcrypt helpers, strict HS256 JWT helpers with the shared
+  clock, confirmation-protected reference seed, sequence resets, reference
+  self-check, bounded token regeneration, atomic private token-file writing.
+- Faults found (vs. blueprint / guidelines): phase review not performed. Authoring
+  accounts for bcrypt's 72-byte limit and dotenv's handling of `#` in demo values.
+- Repair made (commit hash): no I1 completion commit yet; reject bcrypt truncation
+  inputs and quote the demo password in environment files.
+- Retained as-is, and why: reference seed hashes once and reuses that hash; token
+  payloads whitelist fields and require expiration. No auth endpoints or readings
+  generation are introduced in I1.
+
+### 2026-10-09 — I1 tests, owner documentation, and pending phase record
+
+- Tool/model: OpenAI Codex, GPT-6.
+- Prompt (verbatim or path): `docs/prompts/i1-data-layer.md`.
+- What was generated: unit tests for geography/PRNG, JWT failures and claims,
+  passwords, configuration and seed confirmation; isolated DB helper and
+  integration tests for reference seed, token self-check, CHECK constraints,
+  uniqueness and identity sequences; README/script/env updates.
+- Faults found (vs. blueprint / guidelines): no test execution or phase review was
+  requested yet; results remain unknown.
+- Repair made (commit hash): no I1 completion commit yet.
+- Retained as-is, and why: helpers require a separate TEST_DATABASE_URL, never
+  fall back to the development/production database, and use public fixture secrets.
+
+### I1 connection and verification state at initial authoring
+
+- Neon reference project: `summer-thunder-32230894`, branch `production`.
+  Connection credential is stored only in the ignored local `.env` and is not
+  copied into this disclosure, prompts, examples, source, or token output.
+- A fresh local JWT secret is generated privately; no deployed secret is changed.
+- DIRECT_URL and TEST_DATABASE_URL remain blank pending development/test setup.
+- Initial SQL and client code generation are construction steps, not a successful
+  phase-completion check. Generated source/artifacts are ignored and rebuildable.
+- No database connection/query, migration deploy, truncate/seed, device-token file
+  generation, Neon CLI login/link/deploy, test suite, lint gate, spec lint, runtime
+  smoke check, CI run, or final pitfall review was performed for I1.
+- I1 checkboxes remain unchecked pending the owner-requested review. I2 has not
+  started.
+
+### 2026-10-09 — Owner-requested I1 completion review
+
+- Tool/model: OpenAI Codex, GPT-6. Prompt: owner requested phase completion review, prohibited Docker, and explicitly requested the provided production database for all database work. These instructions supersede the document's development/test branch preference for this review.
+- Faults found: initial migration SQL was absent despite a successful Prisma exit; missing datasource configuration caused schema diff to return no SQL. Malformed DIRECT_URL could throw an unredacted parsing error.
+- Repairs: generated and inspected the first migration, supplied an offline-only placeholder datasource for generation/diff while migration/seed wrappers still require a real DIRECT_URL, corrected URL validation, added migration-artifact and malformed-config regressions. Shared-database testing is explicit opt-in, disabled by default.
+- Verification: both migrations applied to initially empty Neon schema; complete integration suite passed; full reference seed restored after test fixtures; seed:tokens regenerated 240 credentials; independent read-only acceptance verified exact rows, 2 migration records, all 240 tokens, bcrypt cost 12, one reused hash and all 7 demo passwords. Build/lint/spec checks passed. No local database, Docker, additional database/branch or next-phase implementation was used.
+- Pitfall review: no Device model or cached last-value fields; composite reading PK and timestamptz retained; CHECK constraints enforced; bcrypt and HS256 claims validated; hashes and credentials excluded from API responses/logs, raw SQL fixed and tagged, database client reused, runtime env access centralized, generated/token/secret files ignored. Policy/endpoints/readings generation remain assigned to later increments.
+- Repair commit: pending; no I1 commit/tag or remote CI verification is claimed.

@@ -2,6 +2,9 @@ node_modules/
 coverage/
 .vercel/
 seed-output/
+generated/
+src/generated/
+.review-tools/
 package-lock.json
 openapi.json
 # Preserve the source documents supplied by the owner.

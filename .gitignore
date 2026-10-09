@@ -7,3 +7,7 @@ seed-output/
 coverage/
 .vercel/
 *.log
+generated/
+src/generated/
+.neon/
+.review-tools/

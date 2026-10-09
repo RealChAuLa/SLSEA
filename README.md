@@ -6,24 +6,27 @@ principals for devices and staff, and Vercel hosting. [project.md](project.md)
 defines the contract; [implementation_plan.md](implementation_plan.md) defines
 the increments.
 
-**Current increment: I0 Foundations.** The public health check, OpenAPI/Swagger
-surface, HTTP plumbing, tests, and CI are implemented. Database setup, seeds,
-authentication, and all `/v1` domain endpoints belong to later increments. Work
-stops at I0 until the owner requests I1.
+**Current increment: I1 Data layer, completion review passed.**
+I0's public health/docs and HTTP foundations remain the API surface. I1 adds the
+Prisma schema/migrations, reference seed, device-token tooling, and JWT/password
+utilities. All 73 tests passed, including integration checks on the owner's Neon
+database. Both migrations and the full reference seed were applied; 240 device
+tokens verified. Build, lint, and spec lint passed. I2 has not started.
 
 ## Local setup
 
-Use Node.js **24 LTS** and its bundled npm. No database or credentials are needed
-for I0.
+Use Node.js **24 LTS** and its bundled npm. The public health/docs surface needs
+no database connection. Owner database tools need the private settings below.
 
 ```sh
 npm ci
-cp .env.example .env
 npm run build
 npm start
 ```
 
-On PowerShell, copy the example with `Copy-Item .env.example .env`. Open
+If `.env` does not already exist, copy `.env.example` to `.env` and fill its private
+settings. On PowerShell use `Copy-Item .env.example .env`. Preserve an existing
+`.env`; it may contain owner credentials. Open
 `http://localhost:3000/health`, `http://localhost:3000/docs`, or
 `http://localhost:3000/openapi.json`. Swagger UI needs internet access to load its
 pinned CDN assets. `requests.http` contains additional smoke requests.
@@ -36,26 +39,32 @@ settings.
 
 ## Scripts
 
-| Script        | Purpose                                                           |
-| ------------- | ----------------------------------------------------------------- |
-| `start`       | Local server from `src/server.js`                                 |
-| `dev`         | Local server with Node watch mode                                 |
-| `build`       | Generate `openapi.json`; Prisma generation will be added in I1    |
-| `spec:build`  | Convert hand-written YAML into bundled JSON                       |
-| `lint`        | ESLint and Prettier checks                                        |
-| `format`      | Format maintained project files                                   |
-| `spec:lint`   | Rebuild and validate both YAML and JSON with Redocly              |
-| `test`        | Rebuild spec, then run Jest/Supertest with Node's ESM support     |
-| `db:migrate`  | Explicit I1 placeholder; exits unsuccessfully without changing DB |
-| `seed`        | Explicit I1 placeholder                                           |
-| `seed:tokens` | Explicit I1 placeholder                                           |
-| `seed:extend` | Explicit I7 placeholder                                           |
-| `simulate`    | Explicit I6 placeholder                                           |
+| Script        | Purpose                                                         |
+| ------------- | --------------------------------------------------------------- |
+| `start`       | Local server from `src/server.js`                               |
+| `dev`         | Local server with Node watch mode                               |
+| `build`       | Generate/compile the Prisma client and generate `openapi.json`  |
+| `db:generate` | Generate the Prisma client without connecting to a database     |
+| `spec:build`  | Convert hand-written YAML into bundled JSON                     |
+| `lint`        | ESLint and Prettier checks                                      |
+| `format`      | Format maintained project files                                 |
+| `spec:lint`   | Rebuild and validate both YAML and JSON with Redocly            |
+| `test`        | Generate client/spec and run all Jest/Supertest tests           |
+| `test:unit`   | Run database-free unit tests                                    |
+| `db:migrate`  | Owner-run Prisma migrate deploy using DIRECT_URL                |
+| `seed`        | Destructively replace reference data and generate device tokens |
+| `seed:tokens` | Regenerate device tokens without modifying database rows        |
+| `seed:extend` | Explicit I7 placeholder                                         |
+| `simulate`    | Explicit I6 placeholder                                         |
 
-JavaScript uses ESM throughout (`type: module`), matching the planned Prisma
-**major 7** setup. Prisma is not installed in I0; I1 must pin matching client,
-CLI, and adapter versions within major 7. The choice follows
+Application, scripts, tests, and Prisma config use plain JavaScript ESM
+(`type: module`). Prisma CLI/client/PostgreSQL adapter are pinned together at
+**7.10.0**. The choice follows
 [Prisma 7's ESM/adapter requirements](https://www.prisma.io/docs/orm/v7).
+The supported `prisma-client` generator emits TypeScript; a build-only compiler
+converts that generated output into JavaScript under `src/generated/prisma`.
+Hand-written application code stays JavaScript. Both generated directories are
+ignored and recreated during the build. The build does not migrate or seed.
 Jest runs through `node --experimental-vm-modules`, with no transpiler. Its Node
 experimental-feature warning is expected.
 
@@ -74,12 +83,71 @@ Invalid configuration stops startup and reports variable names without values.
 An empty CORS list disables cross-origin browser access; same-origin requests
 still work. Add the actual frontend origins before enabling cross-origin use.
 
-`.env.example` also lists all future blueprint variables: `DATABASE_URL`,
-`DIRECT_URL`, `TEST_DATABASE_URL`, `JWT_SECRET`, `JWT_ISSUER`, `JWT_AUDIENCE`,
-`USER_TOKEN_TTL_SECONDS`, `DEVICE_TOKEN_TTL_DAYS`, `STALE_AFTER_MINUTES`,
-`DEFAULT_PAGE_SIZE`, `MAX_PAGE_SIZE`, `MAX_POWER_KW`, `SEED_DEMO_PASSWORD`,
-`SEED_RANDOM`, and `API_BASE_URL`. I0 does not read or require these. Secrets must
-be supplied privately when their increments are implemented.
+I1's database/token/seed settings are loaded and Zod-validated by
+`src/config/data.js` when the corresponding module or owner tool starts. Public
+health/docs imports remain database-free. All error messages identify variable
+names without printing credential values.
+
+| I1 variable                  | Use / default                                                              |
+| ---------------------------- | -------------------------------------------------------------------------- |
+| `DATABASE_URL`               | Neon pooled URL for the runtime singleton                                  |
+| `DIRECT_URL`                 | Non-pooled URL for migrations and seed; same database as runtime           |
+| `TEST_DATABASE_URL`          | Direct URL for a different Neon test branch or disposable PostgreSQL       |
+| `TEST_ALLOW_SHARED_DATABASE` | `no`; explicit `yes` permits destructive tests on the application database |
+| `JWT_SECRET`                 | At least 32 random bytes, provided privately                               |
+| `JWT_ISSUER`, `JWT_AUDIENCE` | Both default to `slsea-solar-api`                                          |
+| `USER_TOKEN_TTL_SECONDS`     | Positive integer, default 3600                                             |
+| `DEVICE_TOKEN_TTL_DAYS`      | Positive integer, default 365                                              |
+| `SEED_DEMO_PASSWORD`         | `Solar#Demo2026`; quote values containing `#` in dotenv files              |
+| `SEED_RANDOM`                | Unsigned 32-bit integer, default 20260601                                  |
+| `SEED_CONFIRM`               | `no`; optional `yes` replaces the CLI confirmation flag                    |
+
+The Neon reference supplied by the owner selects a production branch. Its pooled
+connection is kept only in the ignored local `.env`. At the owner's explicit
+request, runtime, migrations, seed, and integration checks use this one database.
+The direct connection was derived from its pooled hostname; no local database,
+Docker, or additional Neon database/branch was used. Shared-database tests were
+explicitly enabled for this review, then the full reference seed was restored.
+No `neon login`, global skills/MCP installation,
+link, or `neon deploy` is required for this Prisma implementation or was executed.
+Project ID reference: `summer-thunder-32230894`.
+
+`.env.example` also reserves `STALE_AFTER_MINUTES`, `DEFAULT_PAGE_SIZE`,
+`MAX_PAGE_SIZE`, `MAX_POWER_KW`, and `API_BASE_URL` for later increments.
+
+## I1 owner database commands
+
+After selecting the intended database and setting its pooled `DATABASE_URL` and
+non-pooled `DIRECT_URL` in the ignored `.env`:
+
+```sh
+npm run build
+npm run db:migrate
+npm run seed -- --yes
+```
+
+Seed prints the target host and refuses to truncate without `--yes` or
+`SEED_CONFIRM=yes`. It inserts explicit IDs in one transaction, hashes the demo
+password once using bcrypt cost 12, resets all five identity sequences, generates
+one device JWT per installation, and self-checks reference counts, parent links,
+user jurisdictions, and token identities. Full scale has 9/25/30/240 reference
+rows and 7 users; `npm run seed -- --scale test --yes` uses Western/Central,
+36 installations, and all 7 users. Device credentials are written atomically to
+the ignored `seed-output/device-tokens.json`. Keep them private.
+
+The reading table and its nonnegative-value CHECK constraint exist in I1, but
+reading generation is reserved for I4. The second migration is hand-written and
+also enforces the national/non-national user jurisdiction invariant. The first
+migration is generated from the schema without connecting to a database.
+
+To regenerate credentials after a lost file or a signing-key change:
+
+```sh
+npm run seed:tokens
+```
+
+This reads installations in bounded pages and verifies the generated tokens;
+it does not truncate or modify database records.
 
 ## HTTP foundations
 
@@ -120,11 +188,25 @@ npm run spec:lint
 npm test
 ```
 
+The owner requested and authorized the I1 completion review on 2026-10-09.
+
 Tests cover the public endpoints, uniform errors, security headers, negotiation,
 method guards, JSON/body limits, CORS, configuration, safe logging, clock control,
-OpenAPI/router parity, and importing the Vercel entry without a listener. I0 tests
-do not connect to a database. CI runs the same gates on Node 24 with a disposable
-PostgreSQL 17 service and a separate `TEST_DATABASE_URL` prepared for I1.
+OpenAPI/router parity, and importing the Vercel entry without a listener. I1 adds
+unit coverage for deterministic geography, compact fixtures, bcrypt, token
+claims/invalid tokens, config isolation, and destructive-seed confirmation. New
+integration tests migrate/reset/seed **only** `TEST_DATABASE_URL` and check the
+reference self-check, constraints, duplicate readings, and sequence advancement.
+By default the helper refuses URLs identifying the same database as runtime/owner settings,
+including pooled/direct host aliases or different roles on the same database.
+An absent test URL fails explicitly. `TEST_ALLOW_SHARED_DATABASE=yes` explicitly
+permits the same database when the owner authorizes it. Integration tests truncate
+the reference tables and load the compact test dataset. After testing on the
+shared database, run `npm run seed -- --yes` to restore the full reference dataset
+and its device credentials. No tests were run during initial I1 authoring;
+the subsequent review passed all 73 tests and restored the full dataset.
+CI runs the same gates on Node 24 with a disposable PostgreSQL 17 service and a
+separate `TEST_DATABASE_URL`.
 The CI password is a public fixture for the disposable service, never a deployment
 credential. Remote CI status can only be established after pushing to GitHub.
 

@@ -3,7 +3,15 @@ import globals from 'globals';
 
 export default [
   {
-    ignores: ['node_modules/**', 'coverage/**', '.vercel/**', 'seed-output/**'],
+    ignores: [
+      'node_modules/**',
+      'coverage/**',
+      '.vercel/**',
+      'seed-output/**',
+      'generated/**',
+      'src/generated/**',
+      '.review-tools/**',
+    ],
   },
   js.configs.recommended,
   {
