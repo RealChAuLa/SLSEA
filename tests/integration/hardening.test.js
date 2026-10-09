@@ -70,6 +70,13 @@ test('enabled request limits enforce global/login/shared password buckets, proxi
     db: {},
     logger,
   });
+  const diagnostics = jest.spyOn(console, 'error').mockImplementation(() => {});
+  const invalidAddress = await request(limited)
+    .get('/health')
+    .set('X-Forwarded-For', 'token=Private#Password2027');
+  expectApiError(invalidAddress, 400, 'INVALID_QUERY');
+  expect(invalidAddress.text).not.toContain('Private#Password2027');
+  expect(diagnostics).not.toHaveBeenCalled();
   const get = (ip) =>
     request(limited).get('/health').set('X-Forwarded-For', ip);
   const login = (ip) =>

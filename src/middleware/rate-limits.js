@@ -1,4 +1,5 @@
 import { rateLimit } from 'express-rate-limit';
+import { isIP } from 'node:net';
 import { ApiError } from '../errors/api-error.js';
 
 export function requestLimits(enabled) {
@@ -26,6 +27,12 @@ export function requestLimits(enabled) {
   const login = create(30, 900000, 'login');
   const password = create(10, 900000, 'password');
   return (req, res, next) => {
+    // Library validation diagnostics embed invalid IP input in console output.
+    // Reject it before those diagnostics can bypass the sanitized logger.
+    if (!isIP(req.ip ?? ''))
+      return next(
+        new ApiError('INVALID_QUERY', 400, 'Client address is invalid.'),
+      );
     global(req, res, (error) => {
       if (error) return next(error);
       if (req.method === 'POST' && /^\/v1\/auth\/tokens\/?$/.test(req.path))
