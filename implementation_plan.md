@@ -361,13 +361,15 @@ LEFT JOIN first_today f ON f.meter_id = l.meter_id;
 
 ## I8: Generation trends
 
+**Status (2026-10-09):** Implemented and verified: 169 tests/24 suites, build/lint/spec and full-scale Neon acceptance passed. Five scoped trend routes use one SQL aggregate, local bucket snapping, zero-fill and bounded pagination. Full 160,584-reading seed and 240 tokens restored. National seven-day daily trend took 539 ms including network/authentication; ETag 304 and scoped roots passed. I7 commit: 820ef22; I8 completion tag: i8-generation-trends. I9 is authorized next; I10 has not started. No push or remote CI claimed.
+
 **Goal:** the analytical processing resource: time-bucketed regional energy.
 **Builds on:** I7. **Refs:** §3.6, §4.5.
 
 **Tasks**
-- [ ] Query validation: `from` and `to` required; `interval ∈ {hour, day}` (default `day`); `from < to`; max span `hour` ≤ 7 days, `day` ≤ 92 days (after snapping); `sort ∈ {bucket_start, -bucket_start}`; strict params; violations → `400 INVALID_QUERY`/`VALIDATION_FAILED`.
-- [ ] `src/utils/time.js`: snap `from` down and `to` up to Asia/Colombo bucket boundaries (local hour or local day), and enumerate buckets (`bucket_start`/`bucket_end` in UTC). Fixed UTC+05:30 offset, so hour buckets start at `xx:30` UTC.
-- [ ] `trendBuckets(scope, interval, from, to)`: one parameterised query. Outline (the `interval` text must come from the whitelist):
+- [x] Query validation: `from` and `to` required; `interval ∈ {hour, day}` (default `day`); `from < to`; max span `hour` ≤ 7 days, `day` ≤ 92 days (after snapping); `sort ∈ {bucket_start, -bucket_start}`; strict params; violations → `400 INVALID_QUERY`/`VALIDATION_FAILED`.
+- [x] `src/utils/time.js`: snap `from` down and `to` up to Asia/Colombo bucket boundaries (local hour or local day), and enumerate buckets (`bucket_start`/`bucket_end` in UTC). Fixed UTC+05:30 offset, so hour buckets start at `xx:30` UTC.
+- [x] `trendBuckets(scope, interval, from, to)`: one parameterised query. Outline (the `interval` text must come from the whitelist):
 
 ```sql
 WITH meters AS ( /* same region predicate CTE as I7 */ ),
@@ -389,9 +391,9 @@ ORDER BY 1;
 ```
 
   The first reading of each meter in the window uses the preceding reading (if within the extra hour) as its predecessor; otherwise `delta` is NULL and contributes 0. Negative deltas count as 0.
-- [ ] Merge the result into the full bucket list (zero-fill: `energy_Kwh: 0`, `reporting_installations: 0`, `reading_count: 0`), apply `sort`, then paginate **in memory** (`total_count` = number of buckets).
-- [ ] Endpoints (`GET`): `/generation-trend`, `/provinces/{id}/…`, `/districts/{id}/…`, `/grid-substations/{id}/…`, `/installations/{siteId}/generation-trend` (installation scope through `canRead` on the installation). Response: standard envelope + `meta` (`scope`, `interval`, `timezone`, `effective_from`, `effective_to`).
-- [ ] ETag/304 on all trend responses.
+- [x] Merge the result into the full bucket list (zero-fill: `energy_Kwh: 0`, `reporting_installations: 0`, `reading_count: 0`), apply `sort`, then paginate **in memory** (`total_count` = number of buckets).
+- [x] Endpoints (`GET`): `/generation-trend`, `/provinces/{id}/…`, `/districts/{id}/…`, `/grid-substations/{id}/…`, `/installations/{siteId}/generation-trend` (installation scope through `canRead` on the installation). Response: standard envelope + `meta` (`scope`, `interval`, `timezone`, `effective_from`, `effective_to`).
+- [x] ETag/304 on all trend responses.
 
 **OpenAPI:** five trend endpoints, `interval`, `from`, `to`, `meta` schema, the 400 cases.
 

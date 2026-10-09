@@ -2,8 +2,8 @@
   "openapi": "3.0.3",
   "info": {
     "title": "SLSEA Solar Generation Data API",
-    "version": "0.7.0",
-    "description": "I7 Regional summaries, device ingestion, operational reads, reading history, hierarchy, authentication and policy. Health and documentation remain public.\nDomain endpoints use /v1 and JWT bearer authentication. Every user operation\nrequires its documented scope; all errors use the Error schema.\nDemo password: Solar#Demo2026 (all seven seeded users).\nDemo logins: national.operator@slsea.lk, national.analyst@slsea.lk,\nwestern.province@slsea.lk, central.province@slsea.lk,\ncolombo.district@slsea.lk, gampaha.district@slsea.lk, kandy.district@slsea.lk.\n",
+    "version": "0.8.0",
+    "description": "I8 Generation trends, regional summaries, device ingestion, operational reads, reading history, hierarchy, authentication and policy. Health and documentation remain public.\nDomain endpoints use /v1 and JWT bearer authentication. Every user operation\nrequires its documented scope; all errors use the Error schema.\nDemo password: Solar#Demo2026 (all seven seeded users).\nDemo logins: national.operator@slsea.lk, national.analyst@slsea.lk,\nwestern.province@slsea.lk, central.province@slsea.lk,\ncolombo.district@slsea.lk, gampaha.district@slsea.lk, kandy.district@slsea.lk.\n",
     "license": {
       "name": "Private project; all rights reserved",
       "url": "https://www.energy.gov.lk/"
@@ -2231,6 +2231,811 @@
           }
         }
       }
+    },
+    "/v1/generation-trend": {
+      "get": {
+        "operationId": "getNationalGenerationTrend",
+        "tags": [
+          "Operational"
+        ],
+        "summary": "Read caller-jurisdiction generation trend",
+        "description": "Requires a user token and generation:read. Root scope is the caller jurisdiction; addressed regions use the same aggregate jurisdiction policy as summaries. from/to require Z or an offset; encode + as %2B. Floor from and ceil to to Asia/Colombo hour/day boundaries. Effective span is at most 7 days for hour or 92 days for day. Every bucket is returned, zero-filled, then sorted and paginated in memory. One SQL aggregate computes positive per-meter cumulative deltas; a nearest predecessor within one hour before effective_from is used, otherwise first contribution is zero; counter resets contribute zero. Counts include zero-delta readings. No Last-Modified on trends. Unknown parameters are rejected and authorization precedes conditionals.",
+        "parameters": [
+          {
+            "name": "from",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "date-time"
+            },
+            "example": "2026-10-08T00:00:00+05:30"
+          },
+          {
+            "name": "to",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "date-time"
+            },
+            "example": "2026-10-09T00:00:00+05:30"
+          },
+          {
+            "name": "interval",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "hour",
+                "day"
+              ],
+              "default": "day"
+            }
+          },
+          {
+            "name": "sort",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "bucket_start",
+                "-bucket_start"
+              ],
+              "default": "bucket_start"
+            }
+          },
+          {
+            "$ref": "#/components/parameters/Page"
+          },
+          {
+            "$ref": "#/components/parameters/PageSize"
+          },
+          {
+            "$ref": "#/components/parameters/IfMatch"
+          },
+          {
+            "$ref": "#/components/parameters/IfNoneMatch"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Zero-filled paginated generation buckets, with effective snapped window",
+            "headers": {
+              "ETag": {
+                "$ref": "#/components/headers/ETag"
+              },
+              "Link": {
+                "$ref": "#/components/headers/Link"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GenerationTrend"
+                },
+                "example": {
+                  "data": [
+                    {
+                      "bucket_start": "2026-10-08T18:30:00.000Z",
+                      "bucket_end": "2026-10-09T18:30:00.000Z",
+                      "energy_Kwh": 19,
+                      "reporting_installations": 2,
+                      "reading_count": 7
+                    }
+                  ],
+                  "pagination": {
+                    "page": 1,
+                    "page_size": 50,
+                    "total_count": 1,
+                    "total_pages": 1
+                  },
+                  "links": {
+                    "self": "https://api.example.test/v1/generation-trend?from=2026-10-08T18%3A30%3A00Z&to=2026-10-09T18%3A30%3A00Z&page=1&page_size=50",
+                    "first": "https://api.example.test/v1/generation-trend?page=1&page_size=50",
+                    "prev": null,
+                    "next": null,
+                    "last": "https://api.example.test/v1/generation-trend?page=1&page_size=50"
+                  },
+                  "meta": {
+                    "scope": {
+                      "type": "national",
+                      "id": null,
+                      "name": "Sri Lanka"
+                    },
+                    "interval": "day",
+                    "timezone": "Asia/Colombo",
+                    "effective_from": "2026-10-08T18:30:00.000Z",
+                    "effective_to": "2026-10-09T18:30:00.000Z"
+                  }
+                }
+              }
+            }
+          },
+          "304": {
+            "$ref": "#/components/responses/NotModified"
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "405": {
+            "$ref": "#/components/responses/MethodNotAllowed"
+          },
+          "406": {
+            "$ref": "#/components/responses/NotAcceptable"
+          },
+          "412": {
+            "$ref": "#/components/responses/PreconditionFailed"
+          },
+          "415": {
+            "$ref": "#/components/responses/UnsupportedMediaType"
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalError"
+          }
+        }
+      }
+    },
+    "/v1/provinces/{provinceId}/generation-trend": {
+      "get": {
+        "operationId": "getProvinceGenerationTrend",
+        "tags": [
+          "Operational"
+        ],
+        "summary": "Read province generation trend",
+        "description": "Requires a user token and generation:read. Root scope is the caller jurisdiction; addressed regions use the same aggregate jurisdiction policy as summaries. from/to require Z or an offset; encode + as %2B. Floor from and ceil to to Asia/Colombo hour/day boundaries. Effective span is at most 7 days for hour or 92 days for day. Every bucket is returned, zero-filled, then sorted and paginated in memory. One SQL aggregate computes positive per-meter cumulative deltas; a nearest predecessor within one hour before effective_from is used, otherwise first contribution is zero; counter resets contribute zero. Counts include zero-delta readings. No Last-Modified on trends. Unknown parameters are rejected and authorization precedes conditionals.",
+        "parameters": [
+          {
+            "name": "provinceId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 2147483647
+            }
+          },
+          {
+            "name": "from",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "date-time"
+            },
+            "example": "2026-10-08T00:00:00+05:30"
+          },
+          {
+            "name": "to",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "date-time"
+            },
+            "example": "2026-10-09T00:00:00+05:30"
+          },
+          {
+            "name": "interval",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "hour",
+                "day"
+              ],
+              "default": "day"
+            }
+          },
+          {
+            "name": "sort",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "bucket_start",
+                "-bucket_start"
+              ],
+              "default": "bucket_start"
+            }
+          },
+          {
+            "$ref": "#/components/parameters/Page"
+          },
+          {
+            "$ref": "#/components/parameters/PageSize"
+          },
+          {
+            "$ref": "#/components/parameters/IfMatch"
+          },
+          {
+            "$ref": "#/components/parameters/IfNoneMatch"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Zero-filled paginated generation buckets, with effective snapped window",
+            "headers": {
+              "ETag": {
+                "$ref": "#/components/headers/ETag"
+              },
+              "Link": {
+                "$ref": "#/components/headers/Link"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GenerationTrend"
+                },
+                "example": {
+                  "data": [
+                    {
+                      "bucket_start": "2026-10-08T18:30:00.000Z",
+                      "bucket_end": "2026-10-09T18:30:00.000Z",
+                      "energy_Kwh": 19,
+                      "reporting_installations": 2,
+                      "reading_count": 7
+                    }
+                  ],
+                  "pagination": {
+                    "page": 1,
+                    "page_size": 50,
+                    "total_count": 1,
+                    "total_pages": 1
+                  },
+                  "links": {
+                    "self": "https://api.example.test/v1/generation-trend?from=2026-10-08T18%3A30%3A00Z&to=2026-10-09T18%3A30%3A00Z&page=1&page_size=50",
+                    "first": "https://api.example.test/v1/generation-trend?page=1&page_size=50",
+                    "prev": null,
+                    "next": null,
+                    "last": "https://api.example.test/v1/generation-trend?page=1&page_size=50"
+                  },
+                  "meta": {
+                    "scope": {
+                      "type": "province",
+                      "id": 1,
+                      "name": "Colombo"
+                    },
+                    "interval": "day",
+                    "timezone": "Asia/Colombo",
+                    "effective_from": "2026-10-08T18:30:00.000Z",
+                    "effective_to": "2026-10-09T18:30:00.000Z"
+                  }
+                }
+              }
+            }
+          },
+          "304": {
+            "$ref": "#/components/responses/NotModified"
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "405": {
+            "$ref": "#/components/responses/MethodNotAllowed"
+          },
+          "406": {
+            "$ref": "#/components/responses/NotAcceptable"
+          },
+          "412": {
+            "$ref": "#/components/responses/PreconditionFailed"
+          },
+          "415": {
+            "$ref": "#/components/responses/UnsupportedMediaType"
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalError"
+          }
+        }
+      }
+    },
+    "/v1/districts/{districtId}/generation-trend": {
+      "get": {
+        "operationId": "getDistrictGenerationTrend",
+        "tags": [
+          "Operational"
+        ],
+        "summary": "Read district generation trend",
+        "description": "Requires a user token and generation:read. Root scope is the caller jurisdiction; addressed regions use the same aggregate jurisdiction policy as summaries. from/to require Z or an offset; encode + as %2B. Floor from and ceil to to Asia/Colombo hour/day boundaries. Effective span is at most 7 days for hour or 92 days for day. Every bucket is returned, zero-filled, then sorted and paginated in memory. One SQL aggregate computes positive per-meter cumulative deltas; a nearest predecessor within one hour before effective_from is used, otherwise first contribution is zero; counter resets contribute zero. Counts include zero-delta readings. No Last-Modified on trends. Unknown parameters are rejected and authorization precedes conditionals.",
+        "parameters": [
+          {
+            "name": "districtId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 2147483647
+            }
+          },
+          {
+            "name": "from",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "date-time"
+            },
+            "example": "2026-10-08T00:00:00+05:30"
+          },
+          {
+            "name": "to",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "date-time"
+            },
+            "example": "2026-10-09T00:00:00+05:30"
+          },
+          {
+            "name": "interval",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "hour",
+                "day"
+              ],
+              "default": "day"
+            }
+          },
+          {
+            "name": "sort",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "bucket_start",
+                "-bucket_start"
+              ],
+              "default": "bucket_start"
+            }
+          },
+          {
+            "$ref": "#/components/parameters/Page"
+          },
+          {
+            "$ref": "#/components/parameters/PageSize"
+          },
+          {
+            "$ref": "#/components/parameters/IfMatch"
+          },
+          {
+            "$ref": "#/components/parameters/IfNoneMatch"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Zero-filled paginated generation buckets, with effective snapped window",
+            "headers": {
+              "ETag": {
+                "$ref": "#/components/headers/ETag"
+              },
+              "Link": {
+                "$ref": "#/components/headers/Link"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GenerationTrend"
+                },
+                "example": {
+                  "data": [
+                    {
+                      "bucket_start": "2026-10-08T18:30:00.000Z",
+                      "bucket_end": "2026-10-09T18:30:00.000Z",
+                      "energy_Kwh": 19,
+                      "reporting_installations": 2,
+                      "reading_count": 7
+                    }
+                  ],
+                  "pagination": {
+                    "page": 1,
+                    "page_size": 50,
+                    "total_count": 1,
+                    "total_pages": 1
+                  },
+                  "links": {
+                    "self": "https://api.example.test/v1/generation-trend?from=2026-10-08T18%3A30%3A00Z&to=2026-10-09T18%3A30%3A00Z&page=1&page_size=50",
+                    "first": "https://api.example.test/v1/generation-trend?page=1&page_size=50",
+                    "prev": null,
+                    "next": null,
+                    "last": "https://api.example.test/v1/generation-trend?page=1&page_size=50"
+                  },
+                  "meta": {
+                    "scope": {
+                      "type": "district",
+                      "id": 1,
+                      "name": "Colombo"
+                    },
+                    "interval": "day",
+                    "timezone": "Asia/Colombo",
+                    "effective_from": "2026-10-08T18:30:00.000Z",
+                    "effective_to": "2026-10-09T18:30:00.000Z"
+                  }
+                }
+              }
+            }
+          },
+          "304": {
+            "$ref": "#/components/responses/NotModified"
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "405": {
+            "$ref": "#/components/responses/MethodNotAllowed"
+          },
+          "406": {
+            "$ref": "#/components/responses/NotAcceptable"
+          },
+          "412": {
+            "$ref": "#/components/responses/PreconditionFailed"
+          },
+          "415": {
+            "$ref": "#/components/responses/UnsupportedMediaType"
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalError"
+          }
+        }
+      }
+    },
+    "/v1/grid-substations/{substationId}/generation-trend": {
+      "get": {
+        "operationId": "getSubstationGenerationTrend",
+        "tags": [
+          "Operational"
+        ],
+        "summary": "Read substation generation trend",
+        "description": "Requires a user token and generation:read. Root scope is the caller jurisdiction; addressed regions use the same aggregate jurisdiction policy as summaries. from/to require Z or an offset; encode + as %2B. Floor from and ceil to to Asia/Colombo hour/day boundaries. Effective span is at most 7 days for hour or 92 days for day. Every bucket is returned, zero-filled, then sorted and paginated in memory. One SQL aggregate computes positive per-meter cumulative deltas; a nearest predecessor within one hour before effective_from is used, otherwise first contribution is zero; counter resets contribute zero. Counts include zero-delta readings. No Last-Modified on trends. Unknown parameters are rejected and authorization precedes conditionals.",
+        "parameters": [
+          {
+            "name": "substationId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 2147483647
+            }
+          },
+          {
+            "name": "from",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "date-time"
+            },
+            "example": "2026-10-08T00:00:00+05:30"
+          },
+          {
+            "name": "to",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "date-time"
+            },
+            "example": "2026-10-09T00:00:00+05:30"
+          },
+          {
+            "name": "interval",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "hour",
+                "day"
+              ],
+              "default": "day"
+            }
+          },
+          {
+            "name": "sort",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "bucket_start",
+                "-bucket_start"
+              ],
+              "default": "bucket_start"
+            }
+          },
+          {
+            "$ref": "#/components/parameters/Page"
+          },
+          {
+            "$ref": "#/components/parameters/PageSize"
+          },
+          {
+            "$ref": "#/components/parameters/IfMatch"
+          },
+          {
+            "$ref": "#/components/parameters/IfNoneMatch"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Zero-filled paginated generation buckets, with effective snapped window",
+            "headers": {
+              "ETag": {
+                "$ref": "#/components/headers/ETag"
+              },
+              "Link": {
+                "$ref": "#/components/headers/Link"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GenerationTrend"
+                },
+                "example": {
+                  "data": [
+                    {
+                      "bucket_start": "2026-10-08T18:30:00.000Z",
+                      "bucket_end": "2026-10-09T18:30:00.000Z",
+                      "energy_Kwh": 19,
+                      "reporting_installations": 2,
+                      "reading_count": 7
+                    }
+                  ],
+                  "pagination": {
+                    "page": 1,
+                    "page_size": 50,
+                    "total_count": 1,
+                    "total_pages": 1
+                  },
+                  "links": {
+                    "self": "https://api.example.test/v1/generation-trend?from=2026-10-08T18%3A30%3A00Z&to=2026-10-09T18%3A30%3A00Z&page=1&page_size=50",
+                    "first": "https://api.example.test/v1/generation-trend?page=1&page_size=50",
+                    "prev": null,
+                    "next": null,
+                    "last": "https://api.example.test/v1/generation-trend?page=1&page_size=50"
+                  },
+                  "meta": {
+                    "scope": {
+                      "type": "substation",
+                      "id": 1,
+                      "name": "Colombo"
+                    },
+                    "interval": "day",
+                    "timezone": "Asia/Colombo",
+                    "effective_from": "2026-10-08T18:30:00.000Z",
+                    "effective_to": "2026-10-09T18:30:00.000Z"
+                  }
+                }
+              }
+            }
+          },
+          "304": {
+            "$ref": "#/components/responses/NotModified"
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "405": {
+            "$ref": "#/components/responses/MethodNotAllowed"
+          },
+          "406": {
+            "$ref": "#/components/responses/NotAcceptable"
+          },
+          "412": {
+            "$ref": "#/components/responses/PreconditionFailed"
+          },
+          "415": {
+            "$ref": "#/components/responses/UnsupportedMediaType"
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalError"
+          }
+        }
+      }
+    },
+    "/v1/installations/{siteId}/generation-trend": {
+      "get": {
+        "operationId": "getInstallationGenerationTrend",
+        "tags": [
+          "Operational"
+        ],
+        "summary": "Read installation generation trend",
+        "description": "Requires a user token and generation:read. Root scope is the caller jurisdiction; addressed regions use the same aggregate jurisdiction policy as summaries. from/to require Z or an offset; encode + as %2B. Floor from and ceil to to Asia/Colombo hour/day boundaries. Effective span is at most 7 days for hour or 92 days for day. Every bucket is returned, zero-filled, then sorted and paginated in memory. One SQL aggregate computes positive per-meter cumulative deltas; a nearest predecessor within one hour before effective_from is used, otherwise first contribution is zero; counter resets contribute zero. Counts include zero-delta readings. No Last-Modified on trends. Unknown parameters are rejected and authorization precedes conditionals.",
+        "parameters": [
+          {
+            "name": "siteId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 2147483647
+            }
+          },
+          {
+            "name": "from",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "date-time"
+            },
+            "example": "2026-10-08T00:00:00+05:30"
+          },
+          {
+            "name": "to",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "date-time"
+            },
+            "example": "2026-10-09T00:00:00+05:30"
+          },
+          {
+            "name": "interval",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "hour",
+                "day"
+              ],
+              "default": "day"
+            }
+          },
+          {
+            "name": "sort",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "bucket_start",
+                "-bucket_start"
+              ],
+              "default": "bucket_start"
+            }
+          },
+          {
+            "$ref": "#/components/parameters/Page"
+          },
+          {
+            "$ref": "#/components/parameters/PageSize"
+          },
+          {
+            "$ref": "#/components/parameters/IfMatch"
+          },
+          {
+            "$ref": "#/components/parameters/IfNoneMatch"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Zero-filled paginated generation buckets, with effective snapped window",
+            "headers": {
+              "ETag": {
+                "$ref": "#/components/headers/ETag"
+              },
+              "Link": {
+                "$ref": "#/components/headers/Link"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GenerationTrend"
+                },
+                "example": {
+                  "data": [
+                    {
+                      "bucket_start": "2026-10-08T18:30:00.000Z",
+                      "bucket_end": "2026-10-09T18:30:00.000Z",
+                      "energy_Kwh": 19,
+                      "reporting_installations": 2,
+                      "reading_count": 7
+                    }
+                  ],
+                  "pagination": {
+                    "page": 1,
+                    "page_size": 50,
+                    "total_count": 1,
+                    "total_pages": 1
+                  },
+                  "links": {
+                    "self": "https://api.example.test/v1/generation-trend?from=2026-10-08T18%3A30%3A00Z&to=2026-10-09T18%3A30%3A00Z&page=1&page_size=50",
+                    "first": "https://api.example.test/v1/generation-trend?page=1&page_size=50",
+                    "prev": null,
+                    "next": null,
+                    "last": "https://api.example.test/v1/generation-trend?page=1&page_size=50"
+                  },
+                  "meta": {
+                    "scope": {
+                      "type": "installation",
+                      "id": 1,
+                      "name": "Colombo"
+                    },
+                    "interval": "day",
+                    "timezone": "Asia/Colombo",
+                    "effective_from": "2026-10-08T18:30:00.000Z",
+                    "effective_to": "2026-10-09T18:30:00.000Z"
+                  }
+                }
+              }
+            }
+          },
+          "304": {
+            "$ref": "#/components/responses/NotModified"
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "405": {
+            "$ref": "#/components/responses/MethodNotAllowed"
+          },
+          "406": {
+            "$ref": "#/components/responses/NotAcceptable"
+          },
+          "412": {
+            "$ref": "#/components/responses/PreconditionFailed"
+          },
+          "415": {
+            "$ref": "#/components/responses/UnsupportedMediaType"
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalError"
+          }
+        }
+      }
     }
   },
   "components": {
@@ -3207,6 +4012,129 @@
           "energy_today_Kwh": {
             "type": "number",
             "minimum": 0
+          }
+        }
+      },
+      "TrendScope": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "type",
+          "id",
+          "name"
+        ],
+        "properties": {
+          "type": {
+            "type": "string",
+            "enum": [
+              "national",
+              "province",
+              "district",
+              "substation",
+              "installation"
+            ]
+          },
+          "id": {
+            "type": "integer",
+            "nullable": true,
+            "minimum": 1
+          },
+          "name": {
+            "type": "string"
+          }
+        }
+      },
+      "TrendBucket": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "bucket_start",
+          "bucket_end",
+          "energy_Kwh",
+          "reporting_installations",
+          "reading_count"
+        ],
+        "properties": {
+          "bucket_start": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "bucket_end": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "energy_Kwh": {
+            "type": "number",
+            "minimum": 0
+          },
+          "reporting_installations": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "reading_count": {
+            "type": "integer",
+            "minimum": 0
+          }
+        }
+      },
+      "GenerationTrend": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "data",
+          "pagination",
+          "links",
+          "meta"
+        ],
+        "properties": {
+          "data": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/TrendBucket"
+            }
+          },
+          "pagination": {
+            "$ref": "#/components/schemas/Pagination"
+          },
+          "links": {
+            "$ref": "#/components/schemas/Links"
+          },
+          "meta": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "scope",
+              "interval",
+              "timezone",
+              "effective_from",
+              "effective_to"
+            ],
+            "properties": {
+              "scope": {
+                "$ref": "#/components/schemas/TrendScope"
+              },
+              "interval": {
+                "type": "string",
+                "enum": [
+                  "hour",
+                  "day"
+                ]
+              },
+              "timezone": {
+                "type": "string",
+                "enum": [
+                  "Asia/Colombo"
+                ]
+              },
+              "effective_from": {
+                "type": "string",
+                "format": "date-time"
+              },
+              "effective_to": {
+                "type": "string",
+                "format": "date-time"
+              }
+            }
           }
         }
       }

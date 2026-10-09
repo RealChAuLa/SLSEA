@@ -16,6 +16,7 @@ import { paginationLinkHeader } from '../utils/pagination.js';
 import { registerReadingRoutes } from './readings.js';
 import { registerOperationalRoutes } from './operational.js';
 import { registerRegionRoutes } from './regions.js';
+import { registerTrendRoutes } from './trends.js';
 
 function emptyDomainQuery(req, _res, next) {
   if (Object.keys(req.query).length) {
@@ -106,4 +107,5 @@ export function registerDomainRoutes(
   registerReadingRoutes(app, { getDb, reads, writes, clock });
   registerOperationalRoutes(app, { getDb, reads, clock });
   registerRegionRoutes(app, { getDb, reads, clock });
+  registerTrendRoutes(app, { getDb, reads });
 }

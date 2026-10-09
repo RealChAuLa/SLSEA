@@ -6,15 +6,15 @@ principals for devices and staff, and Vercel hosting. [project.md](project.md)
 defines the contract; [implementation_plan.md](implementation_plan.md) defines
 the increments.
 
-**Current increment: I7 Regional summaries and data freshness, verified.**
+**Current increment: I8 Generation trends, verified; I9 is authorized next.**
 I2 authentication/policy (58a0bc0) and I3 hierarchy reads (1874853) are complete.
 I4 adds the three history GETs, deterministic seven-day reading seed and
 Last-Modified/If-Modified-Since. I5 adds last-known readings, installation
 overviews, reporting filters and latest-reading list includes. I6 adds device ingestion and the HTTP simulator;
-I7 adds regional summaries and history extension. All 160 tests
-passed across 22 suites; build, lint and OpenAPI validation passed. The full supplied Neon database holds 240
-installations and 160,822 readings, with 240 verified device credentials.
-No Docker/local database was used. I8 has not started.
+I7 adds regional summaries and history extension. I8 adds generation trends. All 169 tests
+passed across 24 suites; build, lint and OpenAPI validation passed. The full supplied Neon database holds 240
+installations and 160,584 readings, with 240 verified device credentials.
+No Docker/local database was used. I10 has not started.
 
 Log in with any seeded email listed in Swagger and the demo password
 `Solar#Demo2026`. Send the returned `access_token` as `Authorization: Bearer ...`
@@ -226,7 +226,7 @@ npm run spec:lint
 npm test
 ```
 
-I1 through I7 have been verified locally against the supplied Neon database.
+I1 through I8 have been verified locally against the supplied Neon database.
 
 Tests cover the public endpoints, uniform errors, security headers, negotiation,
 method guards, JSON/body limits, CORS, configuration, safe logging, clock control,
@@ -330,7 +330,7 @@ token with `generation:read` and enforce jurisdiction before conditional respons
 
 The restored full seed has 238 reporting installations, stale fixture 239 and
 empty fixture 240. Seeded freshness ages naturally until data is extended;
-`seed:extend` is available below. I8 has not started.
+`seed:extend` is available below. I10 has not started.
 
 ## Device ingestion and simulation (I6)
 
@@ -402,7 +402,36 @@ I6/I7 verification passed 160 tests across 22 suites, including real HTTP device
 simulation, retries, hand-computed summary energy, jurisdiction leakage, zero
 regions, overview consistency, one-query aggregation and concurrent/idempotent
 extension. Full supplied Neon data and credentials were restored and verified.
-I8 has not started; no push or remote CI success is claimed.
+I10 has not started; no push or remote CI success is claimed.
 
-The full-scale owner extension smoke appended 238 due readings; its repeat added
-zero. The final database holds 160,822 readings and all 240 credentials verify.
+The I7 owner extension smoke appended 238 due readings; its repeat added
+zero. After that I7 check the database held 160,822 readings and all 240 credentials verify.
+
+## Generation trends (I8)
+
+GET /v1/generation-trend uses the caller's jurisdiction. The same suffix is
+available on provinces/{provinceId}, districts/{districtId},
+grid-substations/{substationId} and installations/{siteId}, under /v1. All
+require a user token with generation:read. Aggregate access follows the same
+policy as summaries, including the district parent-province restriction.
+
+from and to are required ISO timestamps with Z or an offset. Encode + as %2B.
+interval is hour or day (default day); sort is bucket_start or -bucket_start.
+Windows snap down/up to Asia/Colombo boundaries before the span cap is checked:
+hour at most 7 days, day at most 92. Every bucket is present, with zero values
+for gaps. Responses use data/pagination/links plus meta with scope, interval,
+timezone and effective_from/effective_to. Pagination counts buckets, not readings.
+
+One SQL LAG query sums positive cumulative-counter differences, attributed to
+the later reading's bucket. The first reading uses the nearest predecessor in
+the extra hour before the effective window, or contributes zero if absent.
+Counter resets contribute zero; their readings still count. Trends use ETags
+and have no Last-Modified. Authorization precedes all conditional responses.
+
+I8 passed 169 tests/24 suites plus build/lint/spec checks on supplied Neon. The
+full seven-day seed and 240 credentials were restored after fixtures. The
+national seven-day daily trend returned seven buckets over
+157,716 readings in 539 ms including network/authentication;
+its repeated ETag returned 304. This replaces the prior extension-smoke dataset
+with the original full seed (160,584 readings). I9 is authorized next; I10 has
+not started. No push or remote CI success is claimed.
