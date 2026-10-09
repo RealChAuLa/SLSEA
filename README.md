@@ -1,469 +1,303 @@
 # SLSEA Solar Generation Data API
 
-REST API for Sri Lanka Sustainable Energy Authority rooftop solar generation data.
-The full design uses Express, plain JavaScript, Prisma/PostgreSQL on Neon, JWT
-principals for devices and staff, and Vercel hosting. [project.md](project.md)
-defines the contract; [implementation_plan.md](implementation_plan.md) defines
-the increments.
+Sri Lanka Sustainable Energy Authority rooftop solar API, implemented through
+I10 with Express 5, plain JavaScript ESM, Prisma 7/PostgreSQL on Neon, JWT staff
+and device principals, and Vercel Functions. [project.md](project.md) defines
+the contract; [implementation_plan.md](implementation_plan.md) records delivery.
+Swagger is available at `/docs` and the OpenAPI 1.0.0 contract at `/openapi.json`.
 
-**Current increment: I9 Account and password management, verified.**
-I2 authentication/policy (58a0bc0) and I3 hierarchy reads (1874853) are complete.
-I4 adds the three history GETs, deterministic seven-day reading seed and
-Last-Modified/If-Modified-Since. I5 adds last-known readings, installation
-overviews, reporting filters and latest-reading list includes. I6 adds device ingestion and the HTTP simulator;
-I7 adds regional summaries and history extension. I8 adds generation trends; I9 adds scoped account management and password changes. All 196 tests
-passed across 26 suites; build, lint and OpenAPI validation passed. The full supplied Neon database holds 240
-installations and 160,584 readings, with 240 verified device credentials.
-No Docker/local database was used. I10 has not started.
+I10 implementation commit: **3872f59**; final privacy repair: **547338f**. Local verification passed **231 tests in
+29 suites**, build, lint, OpenAPI validation, security/serializer checks, a
+spec-generated method sweep and bidirectional router/spec parity. Remote CI and
+public Vercel verification are recorded separately below.
 
-Log in with any seeded email listed in Swagger and the demo password
-`Solar#Demo2026`. Send the returned `access_token` as `Authorization: Bearer ...`
-to `/v1/users/me`. Responses expose only the public profile fields. Device tokens
-cannot call user or hierarchy read endpoints.
+## Requirements and setup
 
-Available hierarchy GETs: `/v1/provinces`, `/v1/provinces/{provinceId}`,
-`/v1/provinces/{provinceId}/districts`, `/v1/districts/{districtId}`,
-`/v1/districts/{districtId}/grid-substations`,
-`/v1/grid-substations/{substationId}`,
-`/v1/grid-substations/{substationId}/installations`, `/v1/installations`, and
-`/v1/installations/{siteId}`. Every domain GET requires a user bearer token;
-hierarchy GETs require `generation:read`, and the own profile requires
-`account:manage`. District callers may navigate through their parent province's
-metadata, while child lists stay restricted to their district.
-
-Collections accept `page`, `page_size`, and `sort=name|-name`. Installations also
-accept `province_id`, `district_id`, and `substation_id`; filters are intersected
-with the caller's scope. Unknown query parameters and invalid IDs are rejected.
-Lists return `data`, `pagination`, absolute `links`, and a `Link` header. Empty
-lists use `total_pages: 0` with first/last pointing to page 1; pages beyond the end
-have empty data and a `prev` link to the last real page. Name ties use ascending
-primary key order. Pagination honors the forwarded protocol/host.
-
-GETs emit a strong ETag. Send `If-None-Match` to receive an empty `304` for the
-same representation, or `If-Match` to require a matching representation (`412`
-on mismatch). Authentication, token revocation, validation and jurisdiction
-checks run first. Strong/weak comparisons and evaluation order follow
-[RFC 9110](https://www.rfc-editor.org/rfc/rfc9110.html#section-13.2).
-
-## Local setup
-
-Use Node.js **24 LTS** and its bundled npm. The public health/docs surface needs
-no database connection. Owner database tools need the private settings below.
+Use Node.js **24.x** and npm. Preserve an existing private `.env`; otherwise copy
+`.env.example` and supply the private settings below. Credentials never belong
+in Git. Public health/docs imports work without database or JWT settings.
 
 ```sh
 npm ci
 npm run build
+npm run db:migrate
+npm run seed -- --yes
 npm start
 ```
 
-If `.env` does not already exist, copy `.env.example` to `.env` and fill its private
-settings. On PowerShell use `Copy-Item .env.example .env`. Preserve an existing
-`.env`; it may contain owner credentials. Open
-`http://localhost:3000/health`, `http://localhost:3000/docs`, or
-`http://localhost:3000/openapi.json`. Swagger UI needs internet access to load its
-pinned CDN assets. `requests.http` contains additional smoke requests.
+The owner has explicitly selected one existing Neon production database for
+runtime, migration, seed and tests. This overrides the blueprint's separate
+development/test target examples. No Docker, local database or additional Neon
+branch is used. Tests and seed replace data; run them serially and restore the
+full demo seed afterward. On this workstation the npm launcher can be invoked as
+`node "C:\Program Files\nodejs\node_modules\npm\bin\npm-cli.js"` followed by
+the normal npm arguments.
 
-If the local npm launcher points to a missing installation, invoke the CLI from
-your Node installation directly. On this workstation that is
-`node "C:\Program Files\nodejs\node_modules\npm\bin\npm-cli.js"`; append the usual
-arguments such as `ci`, `start`, or `run lint`. This avoids changing global npm
-settings.
+## Environment
 
-## Scripts
+All environment access is centralized under `src/config/`. Dotenv is optional;
+configuration errors identify variable names without exposing their values.
 
-| Script        | Purpose                                                        |
-| ------------- | -------------------------------------------------------------- |
-| `start`       | Local server from `src/server.js`                              |
-| `dev`         | Local server with Node watch mode                              |
-| `build`       | Generate/compile the Prisma client and generate `openapi.json` |
-| `db:generate` | Generate the Prisma client without connecting to a database    |
-| `spec:build`  | Convert hand-written YAML into bundled JSON                    |
-| `lint`        | ESLint and Prettier checks                                     |
-| `format`      | Format maintained project files                                |
-| `spec:lint`   | Rebuild and validate both YAML and JSON with Redocly           |
-| `test`        | Generate client/spec and run all Jest/Supertest tests          |
-| `test:unit`   | Run database-free unit tests                                   |
-| `db:migrate`  | Owner-run Prisma migrate deploy using DIRECT_URL               |
-| `seed`        | Replace reference data/history and generate device tokens      |
-| `seed:tokens` | Regenerate device tokens without modifying database rows       |
-| `seed:extend` | Append deterministic history, excluding offline/empty fixtures |
-| `simulate`    | Post generated readings over HTTP using private device tokens  |
+| Variable                             | Use / default                                                                                      |
+| ------------------------------------ | -------------------------------------------------------------------------------------------------- |
+| `NODE_ENV`                           | `development`; use `production` on Vercel                                                          |
+| `PORT`                               | `3000`; local listener only                                                                        |
+| `CORS_ORIGINS`                       | Empty by default; comma-separated exact frontend origins, without paths/trailing slashes/wildcards |
+| `RATE_LIMIT_ENABLED`                 | `true`; only the literal `true` or `false` is accepted                                             |
+| `DATABASE_URL`                       | Private pooled Neon runtime URL, including SSL query parameters                                    |
+| `DIRECT_URL`                         | Direct connection to the same database; owner migration/seed tools                                 |
+| `TEST_DATABASE_URL`                  | Direct URL for tests; same as `DIRECT_URL` for this owner's setup                                  |
+| `TEST_ALLOW_SHARED_DATABASE`         | `no`; owner explicitly uses `yes` to permit shared-target destructive tests                        |
+| `JWT_SECRET`                         | Private signing secret, at least 32 bytes; use the same value locally and on Vercel                |
+| `JWT_ISSUER`, `JWT_AUDIENCE`         | `slsea-solar-api`                                                                                  |
+| `USER_TOKEN_TTL_SECONDS`             | `3600`                                                                                             |
+| `DEVICE_TOKEN_TTL_DAYS`              | `365`                                                                                              |
+| `DEFAULT_PAGE_SIZE`, `MAX_PAGE_SIZE` | `50`, `500`; maximum cannot exceed 500                                                             |
+| `STALE_AFTER_MINUTES`                | `30`                                                                                               |
+| `MAX_POWER_KW`                       | `50`                                                                                               |
+| `SEED_DEMO_PASSWORD`                 | `Solar#Demo2026`; quote values containing `#` in dotenv                                            |
+| `SEED_RANDOM`                        | `20260601`; deterministic unsigned 32-bit seed                                                     |
+| `SEED_CONFIRM`                       | `no`; prefer an explicit one-off `--yes`                                                           |
+| `API_BASE_URL`                       | `http://localhost:3000`; simulator and smoke HTTP origin                                           |
 
-Application, scripts, tests, and Prisma config use plain JavaScript ESM
-(`type: module`). Prisma CLI/client/PostgreSQL adapter are pinned together at
-**7.10.0**. The choice follows
-[Prisma 7's ESM/adapter requirements](https://www.prisma.io/docs/orm/v7).
-The supported `prisma-client` generator emits TypeScript; a build-only compiler
-converts that generated output into JavaScript under `src/generated/prisma`.
-Hand-written application code stays JavaScript. Both generated directories are
-ignored and recreated during the build. The build does not migrate or seed.
-Jest runs through `node --experimental-vm-modules`, with no transpiler. Its Node
-experimental-feature warning is expected.
+An empty CORS list disables cross-origin browser access. Swagger on the API's
+own origin still works. Changing the signing secret requires regenerating the
+private device-token file and invalidates tokens signed with the previous key.
 
-## Configuration
+## Scripts and seed
 
-All runtime environment access goes through `src/config/index.js`. Dotenv loads
-the optional `.env` file; Zod validates configuration when the app is imported.
-Invalid configuration stops startup and reports variable names without values.
+| Script                    | Purpose                                                                         |
+| ------------------------- | ------------------------------------------------------------------------------- |
+| `start`, `dev`            | Local server / watch mode                                                       |
+| `build`                   | Generate/compile Prisma client and generate `openapi.json`; no database changes |
+| `db:generate`             | Generate Prisma client only                                                     |
+| `spec:build`, `spec:lint` | Generate specification / validate YAML and JSON                                 |
+| `lint`, `format`          | ESLint + formatting checks / format maintained files                            |
+| `test`, `test:unit`       | Full Jest/Supertest gates / database-free unit tests                            |
+| `db:migrate`              | Owner-run migration deploy through `DIRECT_URL`                                 |
+| `seed`                    | Destructive full reference/history seed plus device credentials                 |
+| `seed:tokens`             | Regenerate credentials without changing database rows                           |
+| `seed:extend`             | Append deterministic due history for normal sites                               |
+| `simulate`                | POST readings using private device tokens over real HTTP                        |
+| `smoke`                   | End-to-end API verification, including writes and password restoration          |
 
-| Active variable | Default       | Validation                                                   |
-| --------------- | ------------- | ------------------------------------------------------------ |
-| `NODE_ENV`      | `development` | `development`, `test`, or `production`                       |
-| `PORT`          | `3000`        | Integer 1–65535, used only by the local server               |
-| `CORS_ORIGINS`  | empty list    | Comma-separated exact HTTP(S) origins; no paths or wildcards |
+Full seed inserts explicit stable IDs for **9 provinces, 25 districts, 30 grid
+substations, 240 installations and 7 users**, advances identity sequences and
+creates **160,584 readings**. Normal sites have 672 quarter-hour readings over
+seven days; offline site 239 has 648 with a six-hour gap; site 240 is empty.
+Counters are monotonic, values and coordinates deterministic, bcrypt cost is
+12, and insertion batches contain at most 5,000 rows. Seed self-checks counts,
+relationships, fixtures, intervals and all 240 credentials.
 
-An empty CORS list disables cross-origin browser access; same-origin requests
-still work. Add the actual frontend origins before enabling cross-origin use.
-
-I1's database/token/seed settings are loaded and Zod-validated by
-`src/config/data.js` when the corresponding module or owner tool starts. Public
-health/docs imports remain database-free. All error messages identify variable
-names without printing credential values.
-
-| I1 variable                  | Use / default                                                                |
-| ---------------------------- | ---------------------------------------------------------------------------- |
-| `DATABASE_URL`               | Neon pooled URL for the runtime singleton                                    |
-| `DIRECT_URL`                 | Non-pooled URL for migrations and seed; same database as runtime             |
-| `TEST_DATABASE_URL`          | Direct URL for a different Neon test branch or disposable PostgreSQL         |
-| `TEST_ALLOW_SHARED_DATABASE` | `no`; explicit `yes` permits destructive tests on the application database   |
-| `JWT_SECRET`                 | At least 32 random bytes, provided privately                                 |
-| `JWT_ISSUER`, `JWT_AUDIENCE` | Both default to `slsea-solar-api`                                            |
-| `USER_TOKEN_TTL_SECONDS`     | Positive integer, default 3600                                               |
-| `DEVICE_TOKEN_TTL_DAYS`      | Positive integer, default 365                                                |
-| `SEED_DEMO_PASSWORD`         | `Solar#Demo2026`; quote values containing `#` in dotenv files                |
-| `SEED_RANDOM`                | Unsigned 32-bit integer, default 20260601                                    |
-| `SEED_CONFIRM`               | `no`; optional `yes` replaces the CLI confirmation flag                      |
-| `DEFAULT_PAGE_SIZE`          | Default collection page size, 50; positive and no greater than MAX_PAGE_SIZE |
-| `MAX_PAGE_SIZE`              | Maximum collection page size, 500; positive and capped at 500                |
-| `STALE_AFTER_MINUTES`        | Positive integer, default 30; freshness threshold for operational reads      |
-
-The Neon reference supplied by the owner selects a production branch. Its pooled
-connection is kept only in the ignored local `.env`. At the owner's explicit
-request, runtime, migrations, seed, and integration checks use this one database.
-The direct connection was derived from its pooled hostname; no local database,
-Docker, or additional Neon database/branch was used. Shared-database tests were
-explicitly enabled for this review, then the full reference seed was restored.
-No `neon login`, global skills/MCP installation,
-link, or `neon deploy` is required for this Prisma implementation or was executed.
-Project ID reference: `summer-thunder-32230894`.
-
-MAX_POWER_KW is active (positive finite number, default 50). API_BASE_URL is the
-simulator HTTP(S) origin (default http://localhost:3000).
-
-## I1 owner database commands
-
-After selecting the intended database and setting its pooled `DATABASE_URL` and
-non-pooled `DIRECT_URL` in the ignored `.env`:
+The ignored `seed-output/device-tokens.json` contains one signed device token
+per site. Keep it private; it is excluded from the deployment. `seed:tokens`
+recreates it after loss or a key change, without truncating data.
 
 ```sh
-npm run build
-npm run db:migrate
 npm run seed -- --yes
-```
-
-Seed prints the target host and refuses to truncate without `--yes` or
-`SEED_CONFIRM=yes`. It inserts explicit IDs in one transaction, hashes the demo
-password once using bcrypt cost 12, resets all five identity sequences, generates
-one device JWT per installation, and self-checks reference counts, parent links,
-user jurisdictions, and token identities. Full scale has 9/25/30/240 reference
-rows and 7 users; `npm run seed -- --scale test --yes` uses Western/Central,
-36 installations, and all 7 users. Device credentials are written atomically to
-the ignored `seed-output/device-tokens.json`. Keep them private.
-
-The reading table and its nonnegative-value CHECK constraint exist in I1, but
-reading generation is now part of the seed: 672 quarter-hour readings per normal
-installation, 648 for the offline fixture (6-hour gap), and none for the empty
-fixture. Test scale uses 192/168/0 respectively. The second migration is hand-written and
-also enforces the national/non-national user jurisdiction invariant. The first
-migration is generated from the schema without connecting to a database.
-
-To regenerate credentials after a lost file or a signing-key change:
-
-```sh
 npm run seed:tokens
-```
-
-This reads installations in bounded pages and verifies the generated tokens;
-it does not truncate or modify database records.
-
-## HTTP foundations
-
-- Public `GET /health` returns `{ "status": "ok" }`. It is a liveness check.
-- Public `GET /openapi.json` serves the generated OpenAPI 3.0.3 document.
-- Public `GET /docs` serves HTML with Swagger UI and JWT Authorize support.
-- API requests negotiate JSON; `/docs` negotiates HTML. Unacceptable `Accept`
-  returns `406 NOT_ACCEPTABLE`. Other POST/PATCH requests require exactly
-  `application/json`, including when the request body is empty (`415` otherwise).
-- JSON parsing has a 10 kb limit. Malformed/primitive JSON returns
-  `400 MALFORMED_JSON`; oversized JSON returns `400 VALIDATION_FAILED`. Unsupported
-  charset or compressed JSON returns `415 UNSUPPORTED_MEDIA_TYPE`.
-- Unknown routes return `404`; unsupported methods on known paths return `405`
-  with `Allow: GET`. The method guard also prevents Express's implicit HEAD.
-  Configured-origin CORS preflights are handled separately with `204`.
-- All errors use `{ error: { code, message, status, details, request_id } }`.
-  Unexpected faults have a generic `500` response.
-- Every response has a fresh server-generated UUID `X-Request-Id`; incoming IDs
-  are never echoed. Helmet adds security headers; Swagger bootstrap uses a CSP
-  hash and pinned CDN assets. GET responses set `Vary: Accept, Authorization`.
-- Successful GETs emit a strong SHA-256 representation ETag. The shared
-  conditional helper controls `304`/`412`; Express's automatic freshness handling
-  is bypassed so authorization and preconditions run in the required order.
-- Logs contain request ID, method, matched route template, status, and duration.
-  Unknown paths are recorded as `[unmatched]`. Headers, queries, request bodies,
-  error messages, tokens, passwords, and hashes are omitted. Server faults retain
-  the error type and stack source locations for diagnosis.
-
-`src/app.js` builds/exports the app without listening; `api/index.js` re-exports
-it for Vercel. Only `src/server.js` opens a local listener. The app trusts the
-closest proxy hop (`trust proxy: 1`); direct local requests still work normally.
-
-## Validation and CI
-
-```sh
-npm run build
-npm run lint
-npm run spec:lint
-npm test
-```
-
-I1 through I9 have been verified locally against the supplied Neon database.
-
-Tests cover the public endpoints, uniform errors, security headers, negotiation,
-method guards, JSON/body limits, CORS, configuration, safe logging, clock control,
-OpenAPI/router parity, and importing the Vercel entry without a listener. I1 adds
-unit coverage for deterministic geography, compact fixtures, bcrypt, token
-claims/invalid tokens, config isolation, and destructive-seed confirmation. New
-integration tests migrate/reset/seed **only** `TEST_DATABASE_URL` and check the
-reference self-check, constraints, duplicate readings, and sequence advancement.
-By default the helper refuses URLs identifying the same database as runtime/owner settings,
-including pooled/direct host aliases or different roles on the same database.
-An absent test URL fails explicitly. `TEST_ALLOW_SHARED_DATABASE=yes` explicitly
-permits the same database when the owner authorizes it. Integration tests truncate
-the reference tables and load the compact test dataset. After testing on the
-shared database, run `npm run seed -- --yes` to restore the full reference dataset
-and its device credentials. No tests were run during initial I1 authoring;
-the subsequent I1 review passed all 73 tests. I2/I3 bring the suite to 110 tests,
-covering seven-user login, token revocation, the jurisdiction matrix, every I3
-endpoint and method guard, filtering, sorting, pagination and conditional ordering.
-I4/I5 bring the suite to 128 tests, adding deterministic history generation,
-time-window boundaries, reading conditionals, local-day energy baselines,
-fresh/stale/empty operational responses, strict list options and constant query
-counts. Full-scale includes use 6 queries for both 1-item and 200-item pages.
-The full seven-day dataset was restored after verification. A default-app smoke
-check passed all seven logins and verified scoped full-scale counts, cached 304
-responses, health/docs, and unauthenticated denial. Remote CI is unverified for
-the new local increments.
-CI runs the same gates on Node 24 with a disposable PostgreSQL 17 service and a
-separate `TEST_DATABASE_URL`.
-The CI password is a public fixture for the disposable service, never a deployment
-credential. Remote CI status can only be established after pushing to GitHub.
-
-## Owner deployment checklist
-
-I0 uses the explicit Node function entry `api/index.js`, with rewrites in
-`vercel.json`, `framework: null` to select that entry consistently, and
-`includeFiles: openapi.json` to retain the generated spec. Default app export is
-supported by [Vercel's Express documentation](https://vercel.com/docs/frameworks/backend/express);
-the explicit function follows its
-[Node runtime configuration](https://vercel.com/docs/functions/runtimes/node-js)
-and [rewrite configuration](https://vercel.com/docs/routing/rewrites).
-
-The owner handles deployment. For an I0 preview:
-
-- [ ] Connect the repository to a Vercel project using Node 24.
-- [ ] Use the checked-in configuration and `npm run build`.
-- [ ] Set `NODE_ENV=production` and the required `CORS_ORIGINS` (or leave it empty).
-- [ ] Deploy and verify `/health`, `/docs`, and `/openapi.json`.
-
-Complete this checklist as later increments become available:
-
-- [ ] Create the Neon database and development branch, plus an isolated test branch.
-- [ ] Set the private runtime environment variables in Vercel, using Neon pooled
-      `DATABASE_URL`. Keep `DIRECT_URL` for owner-run migrations/seed.
-- [ ] Run `npm run db:migrate`, then the destructive `npm run seed` against the
-      intended development branch; retain `seed-output/device-tokens.json` privately.
-- [ ] Deploy the completed API. Never migrate or seed during the Vercel build.
-- [ ] Run `npm run seed:extend` before a demo.
-- [ ] Verify health, Swagger UI, a user login, and a device POST with `simulate`.
-
-Do not use the placeholder scripts for these future steps in I0.
-
-## Reading history (I4)
-
-GET /v1/installations/{siteId}/readings returns a paginated history; append a
-URL-encoded timestamp for one atomic reading. GET /v1/readings returns the caller's
-scoped history and accepts province_id, district_id, substation_id and site_id.
-Both collections accept from (inclusive), to (exclusive), timestamp/-timestamp
-sort (newest first by default), page and page_size. Root history defaults to the
-last 24 hours and caps the window at 31 days; site history has no default window.
-ISO timestamps require Z or an offset. Encode a positive offset's + as %2B,
-for example ?from=2026-10-09T00:00:00%2B05:30.
-
-Last-Modified is the newest timestamp on the selected page and is absent on empty
-pages. If-Modified-Since uses HTTP dates, follows If-Match, and is ignored when
-If-None-Match is supplied. Authentication and jurisdiction are always checked
-first. Device POST ingestion is available; seed:extend is available below.
-
-## Operational reads (I5)
-
-`GET /v1/installations/{siteId}/last-known-reading` returns the newest reading
-with `age_seconds` and `is_stale`. Age is whole elapsed seconds, clamped to zero;
-staleness means the timestamp is strictly older than `STALE_AFTER_MINUTES`.
-An installation with no readings returns `404`. Its reading timestamp supplies
-`Last-Modified`, and both ETag and HTTP-date conditional requests are supported.
-
-`GET /v1/installations/{siteId}/overview` includes installation fields, parent
-substation/district/province IDs and names, a compact `last_known_reading`, and
-`today` with `energy_Kwh`, `peak_power_Kw` and `reading_count`. Today starts at
-midnight in Asia/Colombo (UTC+05:30). Energy is the latest counter today minus the
-last counter before midnight, falling back to the first counter today; no today
-readings produce zero totals. An empty installation has a null latest reading.
-
-Both installation lists accept `reporting=true|false` and
-`include=last_known_reading`, alongside their existing pagination and sorting.
-Reporting filters narrow the caller's scope before counting and pagination.
-Includes fetch latest readings for the selected page in one query, with a null
-value for empty installations. Nested readings omit the site/meter IDs already
-present on the parent. Unknown options are rejected. Overviews and installation
-lists use ETags without a `Last-Modified` header. All operations require a user
-token with `generation:read` and enforce jurisdiction before conditional responses.
-
-The restored full seed has 238 reporting installations, stale fixture 239 and
-empty fixture 240. Seeded freshness ages naturally until data is extended;
-`seed:extend` is available below. I10 has not started.
-
-## Device ingestion and simulation (I6)
-
-POST /v1/installations/{siteId}/readings requires that installation's device token
-with readings:write. User tokens cannot ingest; device tokens cannot read. Send
-only timestamp, power_Kw, cumulative_energy_Kwh and voltage as JSON. Timestamps
-require Z or an offset, at most 5 minutes ahead and 30 days old. Power must be
-between zero and MAX_POWER_KW, cumulative energy nonnegative, and voltage between
-150 and 300. Extra body fields and query parameters are rejected. The counter
-must not be below the nearest earlier reading. Same-installation writes serialize
-that check; the database's composite key protects retries.
-
-Success returns 201, the UTC reading, its ETag and an absolute canonical Location.
-Duplicate meter/timestamp returns 409 DUPLICATE_READING. Conditional GET headers
-do not change the create response. The collection permits GET/POST and advertises
-both in Allow for unsupported methods.
-
-With the server running and ignored private device credentials available:
-
-```sh
-npm run simulate -- --site 1 --count 4
-npm run simulate -- --all --base-url http://localhost:3000
-```
-
-The simulator reads the latest counter through DIRECT_URL, uses the shared
-generator and posts over HTTP. It sends at most the requested number of due
-quarter-hour readings, respecting the future-time limit. Current sites are
-reported as up_to_date; empty sites start at the current quarter-hour boundary.
-It prints site/status/Location and totals, never tokens or response diagnostics.
-
-## Regional summaries and history extension (I7)
-
-GET /v1/generation-summary resolves the verified user's own jurisdiction: national
-whole country, provincial own province, district own district. Addressed summary
-routes are /v1/provinces/{provinceId}/generation-summary,
-/v1/districts/{districtId}/generation-summary and
-/v1/grid-substations/{substationId}/generation-summary. Every route requires a
-user token with generation:read and rejects unknown query parameters. District
-parent-province navigation grants metadata access only; province summaries remain
-forbidden to district users.
-
-Each response includes scope, as_of, timezone, installations_total,
-installations_reporting, installations_not_reporting, total_power_Kw and
-energy_today_Kwh. A single SQL snapshot uses latest readings within the preceding
-48 hours and at or before as_of. Reporting includes the exact freshness boundary;
-power sums only reporting sites. Energy includes stale sites with readings today
-and uses the last counter before Asia/Colombo midnight, falling back to the first
-reading today. Baselines have no age cutoff; negative differences clamp to zero.
-Existing regions without installations return zeros. Last-Modified is as_of;
-ETag and HTTP-date conditions run after authorization. as_of is recomputed on
-each request, so a later snapshot can have a new ETag even when measurements match.
-
-Before a demo, refresh normal installations without replacing existing history:
-
-```sh
 npm run seed:extend
+npm run simulate -- --site 1 --count 1
+npm run simulate -- --all --base-url https://your-api.vercel.app
+npm run smoke -- --base-url https://your-api.vercel.app
 ```
 
-Extension uses DIRECT_URL, the shared generator and each stored latest counter,
-appending through the latest quarter-hour boundary. Batches contain at most 5,000
-rows. Installation locks serialize extension with ingestion and other extension
-runs. Repeating the same target time adds zero rows. Offline site 239 and empty
-site 240 are excluded; compact fixtures use --scale test. A normal site without
-history receives one reading at the target boundary. Off-boundary device readings
-continue exactly 15 minutes after the stored timestamp, preserving the counter. No
-existing reading is modified or deleted. The command prints rowsAdded and end.
+The simulator continues from the latest stored counter, skips sites with no due
+slot and reports created/failed/skipped totals. `--count` caps due readings per
+site; it does not fabricate future slots. `--all` includes the two fixture sites
+and can change their state. History extension excludes those fixtures, uses the
+same deterministic generator and installation locks, and adds zero rows when
+repeated at the same target time. Compact integration fixtures use `--scale test`
+(36 installations and all seven users).
 
-I6/I7 verification passed 160 tests across 22 suites, including real HTTP device
-simulation, retries, hand-computed summary energy, jurisdiction leakage, zero
-regions, overview consistency, one-query aggregation and concurrent/idempotent
-extension. Full supplied Neon data and credentials were restored and verified.
-I10 has not started; no push or remote CI success is claimed.
+The smoke script logs in as every demo user; checks hierarchy, summaries,
+history, trends, conditional responses and jurisdiction denials; posts a real
+reading for site 1; changes the National Analyst password and verifies token
+revocation; then restores its demo password in cleanup. It adds a reading and
+revokes that user's old tokens. Run it when these demo actions are appropriate.
+It prints only safe counters/statuses/timings. `requests.http` provides manual
+request templates; keep real tokens out of that tracked file.
 
-The I7 owner extension smoke appended 238 due readings; its repeat added
-zero. After that I7 check the database held 160,822 readings and all 240 credentials verify.
+## Demo users
 
-## Generation trends (I8)
+All seeded users initially use `Solar#Demo2026` (or `SEED_DEMO_PASSWORD`).
 
-GET /v1/generation-trend uses the caller's jurisdiction. The same suffix is
-available on provinces/{provinceId}, districts/{districtId},
-grid-substations/{substationId} and installations/{siteId}, under /v1. All
-require a user token with generation:read. Aggregate access follows the same
-policy as summaries, including the district parent-province restriction.
+| User                     | Email                        | Jurisdiction |
+| ------------------------ | ---------------------------- | ------------ |
+| National Operator        | `national.operator@slsea.lk` | National     |
+| National Analyst         | `national.analyst@slsea.lk`  | National     |
+| Western Province Officer | `western.province@slsea.lk`  | Province 1   |
+| Central Province Officer | `central.province@slsea.lk`  | Province 2   |
+| Colombo District Officer | `colombo.district@slsea.lk`  | District 1   |
+| Gampaha District Officer | `gampaha.district@slsea.lk`  | District 2   |
+| Kandy District Officer   | `kandy.district@slsea.lk`    | District 4   |
 
-from and to are required ISO timestamps with Z or an offset. Encode + as %2B.
-interval is hour or day (default day); sort is bucket_start or -bucket_start.
-Windows snap down/up to Asia/Colombo boundaries before the span cap is checked:
-hour at most 7 days, day at most 92. Every bucket is present, with zero values
-for gaps. Responses use data/pagination/links plus meta with scope, interval,
-timezone and effective_from/effective_to. Pagination counts buckets, not readings.
+POST `/v1/auth/tokens` with `{ "email", "password" }`. Send the returned
+`access_token` as `Authorization: Bearer ...`. Staff receive `generation:read
+account:manage`; devices receive only `readings:write` for their own site/meter.
+Every staff-token request checks the current password version. A password change
+or reset immediately revokes every old token belonging to the target user.
 
-One SQL LAG query sums positive cumulative-counter differences, attributed to
-the later reading's bucket. The first reading uses the nearest predecessor in
-the extra hour before the effective window, or contributes zero if absent.
-Counter resets contribute zero; their readings still count. Trends use ETags
-and have no Last-Modified. Authorization precedes all conditional responses.
+## API behavior
 
-I8 passed 169 tests/24 suites plus build/lint/spec checks on supplied Neon. The
-full seven-day seed and 240 credentials were restored after fixtures. The
-national seven-day daily trend returned seven buckets over
-157,716 readings in 539 ms including network/authentication;
-its repeated ETag returned 304. This replaces the prior extension-smoke dataset
-with the original full seed (160,584 readings). I9 is described below; I10 has
-not started. No push or remote CI success is claimed.
+Hierarchy GETs expose provinces, their districts, district substations,
+substation installations and atomic resources. Staff access stays inside their
+jurisdiction; district users can read parent-province navigation metadata but
+cannot read province aggregates. Devices cannot call these GETs.
 
-## Account and password management (I9)
+Installation GETs support intersection filters `province_id`, `district_id`,
+`substation_id`, reporting status and `include=last_known_reading`. Last-known
+GET returns freshness and age; no history returns 404. Overview includes the
+hierarchy, last reading and today's energy/peak/count; an empty site has a null
+last reading. These values are derived, without cached last-value columns.
 
-GET /v1/users lists only users the caller may manage, with page/page_size and
-sort=name (default) or -name. National users manage provincial and district
-users; provincial users manage district users within their own province; district
-users get an empty collection. Same-level users are never manageable.
-GET /v1/users/{userId} allows self or a manageable user; /v1/users/me reads
-the caller's profile. Every account route requires a user token with account:manage.
-Profiles expose only user_id, name, email, jurisdiction_type and jurisdiction_id.
-GETs support ETag/304 and have no Last-Modified. Unknown queries are rejected.
+History GETs exist at `/v1/readings`, `/v1/installations/{siteId}/readings` and
+the atomic timestamp suffix. Use ISO timestamps with `Z` or an offset; encode
+`+` as `%2B`. `from` is inclusive and `to` exclusive. Root history defaults to
+24 hours and caps windows at 31 days; it supports hierarchy/site filters. Sort
+is `timestamp` or `-timestamp` (default descending), with stable meter ties.
 
-PATCH /v1/users/me requires exactly current_password and new_password. A wrong
-current password returns 403 CURRENT_PASSWORD_INCORRECT; an unchanged password
-returns 400 VALIDATION_FAILED. PATCH /v1/users/{userId} resets a manageable user's
-password and requires exactly new_password, rejecting current_password. When the
-numeric ID is the caller's own ID, it follows the self-change rules instead.
+Only a site's device may POST its readings. Strict input includes `timestamp`,
+`power_Kw`, `cumulative_energy_Kwh` and `voltage`; site/meter identity comes from
+the path/token. Limits are 30 days past to five minutes future, power 0 through
+`MAX_POWER_KW`, voltage 150–300 and a nonnegative counter that does not fall
+below its predecessor. Duplicate timestamps return 409. Success returns 201,
+an absolute `Location`, ETag and the reading. Locks serialize competing writes.
 
-New passwords require at least ten Unicode characters, a letter and a digit,
-and at most 72 UTF-8 bytes to avoid bcrypt truncation. Passwords are stored with
-bcrypt cost 12. Successful changes return an empty 204 and immediately revoke
-all existing target-user tokens; log in with the new password for a fresh token.
-Caller/target rows are locked in a consistent order and the caller's password
-version is rechecked before an update, preventing a concurrent old-token request
-from overwriting a password change. Rate limiting belongs to I10.
+Generation summaries exist at the caller-scoped root and province, district and
+substation levels. They report fresh power, reporting counts and today's
+positive cumulative-counter energy using a pre-midnight baseline or first-today
+fallback. Results identify the scope, `as_of` and `Asia/Colombo` timezone.
 
-I9 passed 196 tests/26 suites, build/lint and YAML/JSON validation. The supplied
-Neon database alone was used. Default-app acceptance verified all seven demo
-logins, scoped collection counts, conditional profiles, self-change, higher-level
-reset, and old-token revocation. The full 240-installation/160,584-reading seed,
-240 device credentials and all seven demo passwords were restored and checked.
-No push or remote CI success is claimed. I10 has not started.
+Generation trends add an installation level and require `from`/`to`. Local
+hour/day windows snap outward before checking the seven-day hourly or 92-day
+daily caps. One scoped SQL LAG aggregate attributes positive counter deltas to
+the later reading's bucket, with one hour of predecessor lookback. Resets add
+zero energy but still count. Buckets are zero-filled and paginated; meta records
+the effective window, interval and scope. Sort is `bucket_start` or its negative.
+
+GET `/v1/users` lists manageable users: national callers manage provincial and
+district users; provincial callers manage district users in their own province;
+district callers get an empty collection. Same-level users are excluded. Atomic
+GET permits self or a manageable target. All account routes require
+`account:manage` and expose only public profile fields.
+
+PATCH `/v1/users/me` requires exactly `current_password` and `new_password`;
+wrong current returns 403, unchanged or invalid new password returns 400.
+PATCH `/v1/users/{userId}` resets a manageable target with exactly `new_password`,
+rejecting `current_password`; an own numeric ID follows the self-change rules.
+New passwords require ten Unicode characters, a letter and a digit, and at most
+72 UTF-8 bytes to avoid bcrypt truncation. Both return empty 204 responses.
+Caller/target locks and a revocation recheck prevent concurrent old-token updates.
+
+## HTTP and security contract
+
+Collections return `data`, `pagination`, absolute `links` and a `Link` header.
+Page size defaults to 50 and caps at 500. Empty lists have `total_pages: 0`;
+out-of-range pages are empty. Name sorting uses stable ascending ID ties.
+Forwarded protocol/host supply absolute URLs. Unknown fields and queries fail.
+
+Strong ETags support empty 304 responses and 412 precondition failures after
+authentication, validation and authorization. History/atomic-reading/last-known
+GETs also support Last-Modified/If-Modified-Since; If-None-Match takes precedence.
+Metadata, overview, summaries, trends and account GETs have no Last-Modified.
+
+JSON is required except HTML Swagger. Errors share
+`{ "error": { "code", "message", "status", "details", "request_id" } }`.
+Malformed JSON returns 400, unsupported media/encoding 415 and unacceptable
+representations 406. Oversized JSON (>10 KiB) maps to **400 VALIDATION_FAILED**,
+following project.md's status/code table. Unsupported methods, including HEAD,
+return 405 with exact Allow; configured CORS preflights are handled separately.
+
+Helmet supplies HSTS and other headers, Swagger uses a CSP hash and pinned CDN,
+and every response gets a fresh server-generated request ID. Logs omit submitted
+input, tokens, passwords, hashes and secrets. Errors are non-cacheable; GETs vary
+by Accept and Authorization. SQL binds values rather than concatenating input.
+
+Rate limits default on: **600 requests/minute** globally, **30 login attempts
+per 15 minutes**, and **10 password PATCH attempts per 15 minutes** shared across
+both password routes. All attempts count. Keys use the proxy-resolved client IP
+and IPv6 /56 grouping. Uniform 429 responses include Retry-After and draft-8
+RateLimit/RateLimit-Policy headers, exposed through CORS. Memory counters are
+per process and best effort on serverless instances; they reset on restart and
+are not a distributed quota. Tests disable limiting except the dedicated test.
+
+## Vercel owner checklist
+
+- [ ] Select/create the intended Neon database and branch. This owner keeps the
+      supplied existing target; no additional database or Docker is required.
+- [ ] Set the private local pooled `DATABASE_URL`, direct `DIRECT_URL` and
+      signing secret; run `npm run db:migrate` from the owner's machine.
+- [ ] Run `npm run seed -- --yes`; retain `seed-output/device-tokens.json` privately.
+- [ ] Connect the latest Git commit in Vercel. Framework **Other**, repository
+      root directory, Node **24.x**, build `npm run build`, output **public**.
+      The tracked `public/.gitkeep` retains the output directory.
+- [ ] Add Production/Preview runtime settings: pooled `DATABASE_URL`, the same
+      `JWT_SECRET`, `NODE_ENV=production`, exact frontend `CORS_ORIGINS` and
+      `RATE_LIMIT_ENABLED=true`. Issuer/audience defaults must match local tools.
+      Direct/test/seed variables are unnecessary in the deployed runtime.
+- [ ] Deploy. Never migrate or seed during the Vercel build.
+- [ ] Run `npm run seed:extend` before a demo.
+- [ ] Verify `/health`, `/docs`, `/openapi.json`, login and a device POST through
+      `simulate`; run `smoke` for the full demo checks. Use a publicly accessible
+      deployment or the owner's authorized deployment-protection access.
+
+`api/index.js` exports the app without a listener; only the local server listens.
+`vercel.json` rewrites to that explicit function and bundles `openapi.json`.
+The build generates Prisma's supported client and compiles it to JavaScript.
+Runtime uses one pooled Prisma client per process. No runtime file writes occur.
+`.vercelignore` excludes private credentials, generated device tokens, tests,
+disclosure docs and blueprint files. Deployment remains an owner action.
+
+## GitHub CI
+
+In Repository Settings → Secrets and variables → Actions, create repository
+secrets `DATABASE_URL`, `DIRECT_URL`, `TEST_DATABASE_URL`,
+`TEST_ALLOW_SHARED_DATABASE` and `JWT_SECRET`. For this owner, both direct values
+identify the same provided Neon target and the shared-test value is `yes`.
+Use the same signing key as Vercel; paste secret values without dotenv quotes.
+
+GitHub Actions and Vercel run in separate environments. Vercel's variables
+configure the deployed API; Actions secrets configure the temporary CI runner
+that tests the API against Neon and restores the demo seed. Vercel variables
+are not automatically available to Actions. Missing Actions secrets do not
+prevent the deployed API from running, but prevent database CI checks from passing.
+
+CI uses Node 24, npm ci, build, lint, spec validation and the full tests. It
+serializes runs against the shared database and restores the full seed after
+the test step, including failures. There is no Docker service. Static checks
+need no database; integration requires the private secrets. Do not run local
+database tests while CI is using the shared target.
+
+## Final verification record
+
+On 2026-10-09, all 231 tests/29 suites passed, including the final invalid-client-
+address regression. Invalid proxy addresses are rejected before the limiter can
+log their raw values. Follow-up checks for non-cacheable errors, CORS rate-limit
+headers and smoke cleanup also passed.
+A fresh source export of the I10 implementation installed locked dependencies
+and built without `.env` or generated files copied in. The Vercel entry imported
+successfully with no listener and trust proxy 1. A separate Git clone was not run.
+
+The full supplied Neon sequence was seed → simulate --all → seed:extend → smoke:
+**240 created, zero failed/skipped**, extension **zero rows** (already current),
+and **65 smoke checks**, including seven demo logins, real device 201, password
+204, old-token revocation and restored demo password. The national seven-day
+daily trend took **485 ms** and national 24-hour readings took **457 ms** over
+22,921 readings. These are single local-HTTP measurements including
+authentication and Neon round trips, rather than a production latency guarantee.
+
+After these writes, the full seed was restored: 160,584 readings, the original
+stale/empty fixtures, seven demo passwords and 240 verified regenerated tokens.
+History intervals/monotonic counters and both history indexes were rechecked.
+
+Remote GitHub CI has not yet been verified for I10. The workflow is ready; the
+owner is configuring its private repository secrets. No remote-green claim is made.
+
+The owner's supplied deployment URL redirected automated requests to **Login –
+Vercel**, so it could not provide live API verification. The public production domain https://slsea.vercel.app passed health, Swagger,
+spec, login, own-profile and summary checks. It now serves version 1.0.0 after
+the owner pushed the I10 implementation commit 3872f59. The final invalid-client-
+address repair is committed as 547338f and awaits publication.
+See [docs/ai-disclosure.md](docs/ai-disclosure.md) for prompts, assumptions,
+repairs and incremental commit references.

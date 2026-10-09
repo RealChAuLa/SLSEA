@@ -3,8 +3,8 @@
 The owner authorized I0 Foundations and subsequently authorized I1 authoring with
 verification deferred. Project details come from `project.md`; delivery order
 comes from `implementation_plan.md`. The REST API white paper was not supplied.
-The entries below record subsequent authorized increments through I9. Initial
-assumptions are retained as historical notes. No owner deployment is claimed.
+The entries below record subsequent authorized increments through I10. Initial
+assumptions are retained as historical notes. The owner deployed I9; the public production domain was verified during I10.
 
 ## Assumptions and contract decisions
 
@@ -257,3 +257,36 @@ implementation, but were not executed. I1 is not marked complete or tagged.
 - Repairs: the first Unicode length test accidentally supplied ten characters for a below-ten case; it now supplies nine. I2's /me method guard test now expects GET, PATCH and leaves PATCH behavior to I9 tests. The ignored acceptance script's installation-count lookup was corrected to the SolarInstallation model; its cleanup restored demo passwords before the successful rerun. Rate limiting remains explicitly in I10.
 - Validation: 196 tests/26 suites passed, including the nine reset cases, all 49 caller/target profile combinations, scoped pagination/ETags, strict IDs/queries/bodies, device/anonymous denial on GET and PATCH, wrong current/same/invalid passwords, numeric self behavior, login/revocation, log privacy and concurrent updates. Build/lint and YAML+JSON checks passed. Default-app Neon acceptance verified seven demo logins, scoped counts, conditional profiles and both write flows with revoked old tokens. Full seed and 240 credentials reverified, and all seven original demo passwords restored after acceptance. No Docker/local database used.
 - Repair commits: I8 5070792 (i8-generation-trends); I9 implementation is located by completion tag i9-account-passwords. No push or remote CI claimed. I10 has not started.
+
+### 2026-10-09 — I10 hardening and final verification
+
+- Tool/model: OpenAI Codex, GPT-6. Prompt: docs/prompts/i10-hardening.md; owner authorized I10 completion after deploying I9. project.md remains the contract; no white paper was supplied.
+- Generated units: express-rate-limit 8.7.1 and centralized true/false config; global/login/shared-password limit middleware and uniform 429 headers; non-cacheable errors/CORS header exposure; YAML-derived 30-path method sweeps and applicable-error checks; serializer injection audit; owner HTTP smoke CLI and argument/config validation; requests.http expansion; Vercel exclusions; Docker-free serialized CI against owner-supplied Neon secrets; final README/plan records.
+- Faults/repairs: Prettier split a computed test call into an ESLint-ambiguous newline; an assigned request agent fixes it. Reviewed smoke cleanup now probes/restores credentials even if a response is interrupted after a password update, rather than assuming an unconfirmed update did nothing. Error responses are no-store and rate-limit headers are readable through CORS. The first patch attempted duplicate file operations on the CI path and was rejected atomically; no partial edit resulted, and the workflow was updated with a single operation.
+- Contract decisions: oversized JSON retains 400 VALIDATION_FAILED because project.md defines that code/status and the API already documents it; the plan's 413 suggestion is superseded. Owner authorization uses the supplied production database for all DB work and forbids Docker, so CI consumes private repository secrets, serializes runs and restores a full seed after tests. Rate-limit state is per process/IP, IPv6 /56, best effort on serverless; login and password counters count all attempts and password aliases share a bucket. Library cleanup timers are unref'd housekeeping, not application background jobs or durable state. JWT/access_token appears only in the authorized token-issuance response; domain serializers/logs expose no hash, pv, signing secret or token.
+- Validation: 231 tests/29 suites passed; focused final-header/cleanup/serializer checks passed afterward. Build/lint/spec and secret/diff checks passed. Fresh source export installed 599 locked packages and built without .env or copied generated clients; app entry imported with no listener. The requested separate Git clone command was declined, so no actual-clone verification is claimed.
+- Neon acceptance: full seed → simulate --all created all 240 device readings, no failures/skips → seed:extend added zero current rows → 65 smoke checks, all seven demo logins, device 201, password 204/revocation and restored demo password. National seven-day daily trend 485 ms; national 24-hour readings 457 ms over 22921 readings. Final full seed/fixtures/160584 readings restored, seed:tokens regenerated and verified 240 credentials, history intervals/monotonicity/indexes and seven original passwords rechecked.
+- Live evidence: the supplied generated deployment URL was protected by Vercel login. Owner supplied https://slsea.vercel.app; health/docs/spec/login/me/summary passed, now serving version 1.0.0 after the owner pushed 3872f59. Remote CI remains pending; the owner is configuring GitHub secrets.
+- Final local repairs: dependency review found that invalid client IP diagnostics could log raw forwarded input. Reject invalid addresses before invoking the limiter; the regression verifies no console error or reflected input. Jest ignores the private source-export directory to avoid duplicate package discovery. All 231 tests/29 suites passed again and the full seed was restored. These repairs are committed as 547338f.
+- Repair commit: 3872f59 contains the I10 implementation. Completion documentation will be tagged i10-hardening only after final gates are resolved.
+
+### Incremental implementation references
+
+| Increment | Prompt                                 | Implementation commit |
+| --------- | -------------------------------------- | --------------------- |
+| I0        | docs/prompts/i0-foundations.md         | 08420c8               |
+| I1        | docs/prompts/i1-data-layer.md          | 12d7aae               |
+| I2        | docs/prompts/i2-auth-policy.md         | 58a0bc0               |
+| I3        | docs/prompts/i3-hierarchy-read.md      | 1874853               |
+| I4        | docs/prompts/i4-readings-history.md    | 2276fa1               |
+| I5        | docs/prompts/i5-operational-reads.md   | 69b80a5               |
+| I6        | docs/prompts/i6-device-ingestion.md    | b22102b               |
+| I7        | docs/prompts/i7-summaries-freshness.md | 820ef22               |
+| I8        | docs/prompts/i8-generation-trends.md   | 5070792               |
+| I9        | docs/prompts/i9-account-passwords.md   | 767bd13               |
+| I10       | docs/prompts/i10-hardening.md          | 3872f59               |
+
+The owner deployment output-directory repair is c8122a4. The missing I0/I1
+completion tags were restored locally as i0-foundations and i1-data-layer at
+their verified implementation commits above. Final I10 tagging remains pending
+its CI exit gate.

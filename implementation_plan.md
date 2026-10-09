@@ -440,25 +440,27 @@ ORDER BY 1;
 
 ## I10: Hardening & completion
 
+**Status (2026-10-09):** Implementation and local verification complete in 3872f59: 231 tests/29 suites, lint/spec/build, all 30-path unsupported-method sweeps, parity/security/serializer checks and 65 real-HTTP smoke checks passed. Full simulation created 240 readings with no failures; extension added zero rows because all normal sites were current. National seven-day daily trend: 485 ms; national 24-hour readings: 457 ms. Fresh source export (no .env/generated client) installed and built; a separate Git clone command was declined, so it is not claimed. Original 160,584-reading seed, seven demo passwords, fixtures and 240 regenerated credentials restored and verified. The owner's public production domain passed six live checks and now serves 1.0.0 after owner publication of 3872f59. Final regression also passed after rejecting invalid client addresses before limiter diagnostics; that repair is committed as 547338f and awaits publication. Remote CI and the I10 completion tag remain pending; no remote-green claim.
+
 **Goal:** harden, prove completeness, and make the repository ready for the owner to deploy.
 **Builds on:** I9. **Refs:** §5.6, §8, §9, §10, §11.
 
 **Tasks**
-- [ ] Rate limiting (`express-rate-limit`): tight on `/auth/tokens` and both password PATCH routes, loose globally; `429 RATE_LIMITED` in the uniform body. Add `RATE_LIMIT_ENABLED` (default `true`) to config and `.env.example`; tests set it `false` except one dedicated test.
-- [ ] Body size limit verified (10 kb → `413` mapped to the uniform body with code `VALIDATION_FAILED` or a dedicated code, documented in the spec).
-- [ ] Serializer audit: grep and test that `password_hash`, `pv`, `JWT_SECRET` and token strings never appear in responses or logs.
-- [ ] **405 sweep test generated from `openapi.yaml`:** for every path, each HTTP method not declared in the spec (notably `PUT` and `DELETE`) returns `405` with an exact `Allow` header.
-- [ ] **Spec ↔ router parity test:** every spec path+method has a route and every route has a spec entry; `spec:lint` clean; all error responses documented per operation.
-- [ ] End-to-end smoke script/`requests.http`: login (each role), key reads at every level, device ingest, conditional GET, password change.
-- [ ] `README.md` complete: overview, requirements, setup, scripts, env vars (`.env.example` in sync), seed instructions (§6), demo logins, the device-token file, `simulate` usage, and the **owner checklist** from §10 (create Neon DB/branch; set Vercel env vars; `db:migrate`; `seed` and keep `seed-output/device-tokens.json`; deploy; `seed:extend` before any demo; verify `/health`, `/docs`, login, and a device POST via `simulate`).
-- [ ] Vercel-readiness verification: `npm run build` succeeds from a clean clone; importing `api/index.js` does not call `listen`; `openapi.json` is generated and bundled; Prisma client generation works for Vercel's runtime; `.vercelignore` (or equivalent) excludes `seed-output/`, `tests/`, `docs/`; no code writes to disk at runtime; all absolute URLs derive from forwarded headers.
-- [ ] Final pass over `docs/ai-disclosure.md`: every generated unit has prompt, faults found, repair and commit hash; assumptions listed.
-- [ ] Final full run against the Neon dev branch: `seed`, `simulate --all`, `seed:extend`, then the smoke script; record timings of the heaviest queries (national 7-day trend, `/readings` 24 h) in the README.
+- [x] Rate limiting (`express-rate-limit`): tight on `/auth/tokens` and both password PATCH routes, loose globally; `429 RATE_LIMITED` in the uniform body. Add `RATE_LIMIT_ENABLED` (default `true`) to config and `.env.example`; tests set it `false` except one dedicated test.
+- [x] Body size limit verified (10 KiB parser limit → `400 VALIDATION_FAILED` following project.md’s status/code table (supersedes the 413 suggestion), documented in the spec).
+- [x] Serializer audit: grep and test that `password_hash`, `pv`, `JWT_SECRET` and token strings never appear in responses or logs.
+- [x] **405 sweep test generated from `openapi.yaml`:** for every path, each HTTP method not declared in the spec (notably `PUT` and `DELETE`) returns `405` with an exact `Allow` header.
+- [x] **Spec ↔ router parity test:** every spec path+method has a route and every route has a spec entry; `spec:lint` clean; all error responses documented per operation.
+- [x] End-to-end smoke script/`requests.http`: login (each role), key reads at every level, device ingest, conditional GET, password change.
+- [x] `README.md` complete: overview, requirements, setup, scripts, env vars (`.env.example` in sync), seed instructions (§6), demo logins, the device-token file, `simulate` usage, and the **owner checklist** from §10 (create Neon DB/branch; set Vercel env vars; `db:migrate`; `seed` and keep `seed-output/device-tokens.json`; deploy; `seed:extend` before any demo; verify `/health`, `/docs`, login, and a device POST via `simulate`).
+- [x] Vercel-readiness verification: `npm run build` succeeds from a fresh source export without .env or generated artifacts; separate Git-clone command declined; importing `api/index.js` does not call `listen`; `openapi.json` is generated and bundled; Prisma client generation works for Vercel's runtime; `.vercelignore` (or equivalent) excludes `seed-output/`, `tests/`, `docs/`; no code writes to disk at runtime; all absolute URLs derive from forwarded headers.
+- [x] Final pass over `docs/ai-disclosure.md`: every generated unit has prompt, faults found, repair and commit hash; assumptions listed.
+- [x] Final full run against the owner-provided Neon production target (explicit user instruction supersedes the dev-branch example): `seed`, `simulate --all`, `seed:extend`, then the smoke script; record timings of the heaviest queries (national 7-day trend, `/readings` 24 h) in the README.
 
 **Exit criteria**
 - [ ] All gates green in CI (lint, spec lint, unit, integration, security, parity, 405 sweep).
-- [ ] README checklist is complete and accurate.
-- [ ] The project is ready for the owner to deploy. **Tag:** `i10-hardening`.
+- [x] README checklist is complete and accurate.
+- [x] The project is ready for the owner to deploy. **Tag:** `i10-hardening`.
 
 ---
 
@@ -466,12 +468,12 @@ ORDER BY 1;
 
 Verify against `project.md` before handing over:
 
-- [ ] Every URI in §3.1 exists, returns the documented shape, and unsupported methods (including every `PUT` and `DELETE`) return `405` + `Allow`.
-- [ ] Hierarchy, installations, readings, last-known, overview, summaries and trends all enforce jurisdiction (no cross-jurisdiction leakage at any level, root forms included).
-- [ ] Write/read split: devices can only `POST` readings for their own installation; no user can write readings.
-- [ ] Pagination (count, `next`/`prev`, `Link`), filtering (jurisdiction, time window), sorting, `ETag`/`Last-Modified`/`304`/`412` all behave per §4.
-- [ ] One error schema across every failure.
-- [ ] Seed matches §6 (counts, ids, users, fixtures); `device-tokens.json` verifies; `seed:extend` and `seed:tokens` work.
-- [ ] Password change and reset follow §5.5 and revoke old tokens.
-- [ ] `openapi.yaml` is complete, lint-clean, and served at `/docs` and `/openapi.json`.
+- [x] Every URI in §3.1 exists, returns the documented shape, and unsupported methods (including every `PUT` and `DELETE`) return `405` + `Allow`.
+- [x] Hierarchy, installations, readings, last-known, overview, summaries and trends all enforce jurisdiction (no cross-jurisdiction leakage at any level, root forms included).
+- [x] Write/read split: devices can only `POST` readings for their own installation; no user can write readings.
+- [x] Pagination (count, `next`/`prev`, `Link`), filtering (jurisdiction, time window), sorting, `ETag`/`Last-Modified`/`304`/`412` all behave per §4.
+- [x] One error schema across every failure.
+- [x] Seed matches §6 (counts, ids, users, fixtures); `device-tokens.json` verifies; `seed:extend` and `seed:tokens` work.
+- [x] Password change and reset follow §5.5 and revoke old tokens.
+- [x] `openapi.yaml` is complete, lint-clean, and served at `/docs` and `/openapi.json`.
 - [ ] Repository history is incremental with one tag per increment; `docs/ai-disclosure.md` is complete.
