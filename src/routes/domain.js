@@ -10,6 +10,7 @@ import { getAtomic, getCollection } from '../services/hierarchy-read.js';
 import { sendConditional } from '../utils/conditional.js';
 import { paginationLinkHeader } from '../utils/pagination.js';
 import { registerReadingRoutes } from './readings.js';
+import { registerOperationalRoutes } from './operational.js';
 
 function emptyDomainQuery(req, _res, next) {
   if (Object.keys(req.query).length) {
@@ -57,7 +58,10 @@ export function registerDomainRoutes(
       .route(path)
       .all(methodNotAllowed(['GET']))
       .get(...reads, async (req, res) => {
-        const body = await getCollection(await getDb(), req, resource, options);
+        const body = await getCollection(await getDb(), req, resource, {
+          ...options,
+          clock,
+        });
         res.set('Link', paginationLinkHeader(body.links));
         sendConditional(req, res, body);
       });
@@ -94,4 +98,5 @@ export function registerDomainRoutes(
   collection('/v1/installations', 'installation', { allowFilters: true });
   atomic('/v1/installations/:siteId', 'installation', 'siteId');
   registerReadingRoutes(app, { getDb, reads, clock });
+  registerOperationalRoutes(app, { getDb, reads, clock });
 }

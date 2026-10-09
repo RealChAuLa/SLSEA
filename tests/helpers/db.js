@@ -13,6 +13,7 @@ import { seedReadings } from '../../prisma/seed-lib/history.js';
 export async function createTestDatabase({
   history = false,
   endTimestamp,
+  queryLogging = false,
 } = {}) {
   // No URL fallback. Shared targets require the owner's explicit config opt-in.
   const { testDatabaseUrl } = loadTestDatabaseConfig();
@@ -38,7 +39,7 @@ export async function createTestDatabase({
     throw new Error(
       'Test migrations failed. Check the isolated TEST_DATABASE_URL; database output was withheld.',
     );
-  const db = createDatabaseClient(testDatabaseUrl);
+  const db = createDatabaseClient(testDatabaseUrl, { queryLogging });
   const dataset = buildDataset({ scale: 'test' });
   const tokens = createTokenUtils({
     jwtSecret: 'isolated-test-only-signing-secret-at-least-32-bytes',

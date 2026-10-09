@@ -238,14 +238,16 @@ flowchart TD
 
 ## I5: Operational reads
 
+**Status (2026-10-09):** Implemented and verified: 128 tests across 18 suites, build, lint, both OpenAPI documents and full-scale Neon acceptance passed. Operational fixtures report 238 fresh, 1 stale and 1 empty installation; Colombo scope returns 32 reporting sites. Included list pages of 1 and 200 installations each use 6 queries. Last-known conditional requests, overview empty values and cross-district denials passed on the restored full seed (160,584 readings and 240 verified tokens). I4 commit: 2276fa1 (i4-readings-history); I5 completion tag: i5-operational-reads. Remote CI is unverified; no push is claimed. I6 has not started.
+
 **Goal:** the real-time view per installation, plus operational list options.
 **Builds on:** I4. **Refs:** §3.3, §3.4, §4.5, §6.5.
 
 **Tasks**
-- [ ] `src/utils/time.js`: Asia/Colombo helpers (`startOfLocalDay(date)`, local-hour bucket helpers; fixed UTC+05:30).
-- [ ] `GET /v1/installations/{siteId}/last-known-reading`: newest reading (`ORDER BY timestamp DESC LIMIT 1` by `meter_id`), derived `age_seconds` and `is_stale` using the injected clock and `STALE_AFTER_MINUTES`; installation without readings → `404`. `Last-Modified` = the reading's `timestamp`.
-- [ ] `GET /v1/installations/{siteId}/overview` (composite): installation + `substation`/`district`/`province` (id + name) + `last_known_reading` (or `null`) + `today` (`energy_Kwh`, `peak_power_Kw`, `reading_count` for the Asia/Colombo day). Compute `today.energy_Kwh` with simple per-installation queries now: baseline = last reading before local midnight, else the first reading today; energy = latest today − baseline.
-- [ ] Installation list options on `/installations` and `/grid-substations/{id}/installations`:
+- [x] `src/utils/time.js`: Asia/Colombo helpers (`startOfLocalDay(date)`, local-hour bucket helpers; fixed UTC+05:30).
+- [x] `GET /v1/installations/{siteId}/last-known-reading`: newest reading (`ORDER BY timestamp DESC LIMIT 1` by `meter_id`), derived `age_seconds` and `is_stale` using the injected clock and `STALE_AFTER_MINUTES`; installation without readings → `404`. `Last-Modified` = the reading's `timestamp`.
+- [x] `GET /v1/installations/{siteId}/overview` (composite): installation + `substation`/`district`/`province` (id + name) + `last_known_reading` (or `null`) + `today` (`energy_Kwh`, `peak_power_Kw`, `reading_count` for the Asia/Colombo day). Compute `today.energy_Kwh` with simple per-installation queries now: baseline = last reading before local midnight, else the first reading today; energy = latest today − baseline.
+- [x] Installation list options on `/installations` and `/grid-substations/{id}/installations`:
   - `reporting=true|false`: first compute the set of reporting meters (latest reading within `STALE_AFTER_MINUTES`) for the caller's scope with one `DISTINCT ON` query, then apply `in`/`notIn` **before** pagination.
   - `include=last_known_reading`: after the page is selected, fetch the latest reading for the page's meters in **one** query and attach (`null` when none). No per-item queries.
   - Unknown `include` value → `400`.

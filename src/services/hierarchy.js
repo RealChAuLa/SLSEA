@@ -29,7 +29,7 @@ export async function resolveHierarchy(db, level, id) {
       await db.$queryRaw`SELECT g.substation_id, g.name, g.district_id, d.province_id FROM grid_substations g JOIN districts d ON d.district_id = g.district_id WHERE g.substation_id = ${id}::int`;
   } else if (level === 'installation') {
     rows =
-      await db.$queryRaw`SELECT i.site_id, i.name, i.meter_id, i.latitude, i.longitude, i.substation_id, g.district_id, d.province_id FROM solar_installations i JOIN grid_substations g ON g.substation_id = i.substation_id JOIN districts d ON d.district_id = g.district_id WHERE i.site_id = ${id}::int`;
+      await db.$queryRaw`SELECT i.site_id, i.name, i.meter_id, i.latitude, i.longitude, i.substation_id, g.district_id, d.province_id, g.name AS substation_name, d.name AS district_name, p.name AS province_name FROM solar_installations i JOIN grid_substations g ON g.substation_id = i.substation_id JOIN districts d ON d.district_id = g.district_id JOIN provinces p ON p.province_id = d.province_id WHERE i.site_id = ${id}::int`;
   } else {
     throw new Error('Unknown hierarchy level.');
   }

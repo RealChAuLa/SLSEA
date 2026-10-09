@@ -6,11 +6,12 @@ principals for devices and staff, and Vercel hosting. [project.md](project.md)
 defines the contract; [implementation_plan.md](implementation_plan.md) defines
 the increments.
 
-**Current increment: I4 Readings history, verified; I5 is authorized next.**
+**Current increment: I5 Operational reads, verified.**
 I2 authentication/policy (58a0bc0) and I3 hierarchy reads (1874853) are complete.
 I4 adds the three history GETs, deterministic seven-day reading seed and
-Last-Modified/If-Modified-Since. All 120 tests passed across 16 suites; build, lint
-and OpenAPI validation passed. The full supplied Neon database holds 240
+Last-Modified/If-Modified-Since. I5 adds last-known readings, installation
+overviews, reporting filters and latest-reading list includes. All 128 tests
+passed across 18 suites; build, lint and OpenAPI validation passed. The full supplied Neon database holds 240
 installations and 160,584 readings, with 240 verified device credentials.
 No Docker/local database was used. I6 has not started.
 
@@ -69,23 +70,23 @@ settings.
 
 ## Scripts
 
-| Script        | Purpose                                                         |
-| ------------- | --------------------------------------------------------------- |
-| `start`       | Local server from `src/server.js`                               |
-| `dev`         | Local server with Node watch mode                               |
-| `build`       | Generate/compile the Prisma client and generate `openapi.json`  |
-| `db:generate` | Generate the Prisma client without connecting to a database     |
-| `spec:build`  | Convert hand-written YAML into bundled JSON                     |
-| `lint`        | ESLint and Prettier checks                                      |
-| `format`      | Format maintained project files                                 |
-| `spec:lint`   | Rebuild and validate both YAML and JSON with Redocly            |
-| `test`        | Generate client/spec and run all Jest/Supertest tests           |
-| `test:unit`   | Run database-free unit tests                                    |
-| `db:migrate`  | Owner-run Prisma migrate deploy using DIRECT_URL                |
-| `seed`        | Destructively replace reference data and generate device tokens |
-| `seed:tokens` | Regenerate device tokens without modifying database rows        |
-| `seed:extend` | Explicit I7 placeholder                                         |
-| `simulate`    | Explicit I6 placeholder                                         |
+| Script        | Purpose                                                        |
+| ------------- | -------------------------------------------------------------- |
+| `start`       | Local server from `src/server.js`                              |
+| `dev`         | Local server with Node watch mode                              |
+| `build`       | Generate/compile the Prisma client and generate `openapi.json` |
+| `db:generate` | Generate the Prisma client without connecting to a database    |
+| `spec:build`  | Convert hand-written YAML into bundled JSON                    |
+| `lint`        | ESLint and Prettier checks                                     |
+| `format`      | Format maintained project files                                |
+| `spec:lint`   | Rebuild and validate both YAML and JSON with Redocly           |
+| `test`        | Generate client/spec and run all Jest/Supertest tests          |
+| `test:unit`   | Run database-free unit tests                                   |
+| `db:migrate`  | Owner-run Prisma migrate deploy using DIRECT_URL               |
+| `seed`        | Replace reference data/history and generate device tokens      |
+| `seed:tokens` | Regenerate device tokens without modifying database rows       |
+| `seed:extend` | Explicit I7 placeholder                                        |
+| `simulate`    | Explicit I6 placeholder                                        |
 
 Application, scripts, tests, and Prisma config use plain JavaScript ESM
 (`type: module`). Prisma CLI/client/PostgreSQL adapter are pinned together at
@@ -133,6 +134,7 @@ names without printing credential values.
 | `SEED_CONFIRM`               | `no`; optional `yes` replaces the CLI confirmation flag                      |
 | `DEFAULT_PAGE_SIZE`          | Default collection page size, 50; positive and no greater than MAX_PAGE_SIZE |
 | `MAX_PAGE_SIZE`              | Maximum collection page size, 500; positive and capped at 500                |
+| `STALE_AFTER_MINUTES`        | Positive integer, default 30; freshness threshold for operational reads      |
 
 The Neon reference supplied by the owner selects a production branch. Its pooled
 connection is kept only in the ignored local `.env`. At the owner's explicit
@@ -144,7 +146,7 @@ No `neon login`, global skills/MCP installation,
 link, or `neon deploy` is required for this Prisma implementation or was executed.
 Project ID reference: `summer-thunder-32230894`.
 
-`.env.example` also reserves `STALE_AFTER_MINUTES`, `MAX_POWER_KW`, and
+`.env.example` also reserves `MAX_POWER_KW` and
 `API_BASE_URL` for later increments.
 
 ## I1 owner database commands
@@ -202,8 +204,9 @@ it does not truncate or modify database records.
 - Every response has a fresh server-generated UUID `X-Request-Id`; incoming IDs
   are never echoed. Helmet adds security headers; Swagger bootstrap uses a CSP
   hash and pinned CDN assets. GET responses set `Vary: Accept, Authorization`.
-- Successful GETs emit a strong SHA-256 representation ETag. Conditional
-  evaluation is reserved for I3, so Express's automatic `304` handling is bypassed.
+- Successful GETs emit a strong SHA-256 representation ETag. The shared
+  conditional helper controls `304`/`412`; Express's automatic freshness handling
+  is bypassed so authorization and preconditions run in the required order.
 - Logs contain request ID, method, matched route template, status, and duration.
   Unknown paths are recorded as `[unmatched]`. Headers, queries, request bodies,
   error messages, tokens, passwords, and hashes are omitted. Server faults retain
@@ -222,7 +225,7 @@ npm run spec:lint
 npm test
 ```
 
-I1, I2 and I3 have been verified locally against the supplied Neon database.
+I1 through I5 have been verified locally against the supplied Neon database.
 
 Tests cover the public endpoints, uniform errors, security headers, negotiation,
 method guards, JSON/body limits, CORS, configuration, safe logging, clock control,
@@ -241,7 +244,11 @@ and its device credentials. No tests were run during initial I1 authoring;
 the subsequent I1 review passed all 73 tests. I2/I3 bring the suite to 110 tests,
 covering seven-user login, token revocation, the jurisdiction matrix, every I3
 endpoint and method guard, filtering, sorting, pagination and conditional ordering.
-The full reference dataset was restored after verification. A default-app smoke
+I4/I5 bring the suite to 128 tests, adding deterministic history generation,
+time-window boundaries, reading conditionals, local-day energy baselines,
+fresh/stale/empty operational responses, strict list options and constant query
+counts. Full-scale includes use 6 queries for both 1-item and 200-item pages.
+The full seven-day dataset was restored after verification. A default-app smoke
 check passed all seven logins and verified scoped full-scale counts, cached 304
 responses, health/docs, and unauthenticated denial. Remote CI is unverified for
 the new local increments.
@@ -295,3 +302,31 @@ Last-Modified is the newest timestamp on the selected page and is absent on empt
 pages. If-Modified-Since uses HTTP dates, follows If-Match, and is ignored when
 If-None-Match is supplied. Authentication and jurisdiction are always checked
 first. POST ingestion and seed:extend remain later-increment placeholders.
+
+## Operational reads (I5)
+
+`GET /v1/installations/{siteId}/last-known-reading` returns the newest reading
+with `age_seconds` and `is_stale`. Age is whole elapsed seconds, clamped to zero;
+staleness means the timestamp is strictly older than `STALE_AFTER_MINUTES`.
+An installation with no readings returns `404`. Its reading timestamp supplies
+`Last-Modified`, and both ETag and HTTP-date conditional requests are supported.
+
+`GET /v1/installations/{siteId}/overview` includes installation fields, parent
+substation/district/province IDs and names, a compact `last_known_reading`, and
+`today` with `energy_Kwh`, `peak_power_Kw` and `reading_count`. Today starts at
+midnight in Asia/Colombo (UTC+05:30). Energy is the latest counter today minus the
+last counter before midnight, falling back to the first counter today; no today
+readings produce zero totals. An empty installation has a null latest reading.
+
+Both installation lists accept `reporting=true|false` and
+`include=last_known_reading`, alongside their existing pagination and sorting.
+Reporting filters narrow the caller's scope before counting and pagination.
+Includes fetch latest readings for the selected page in one query, with a null
+value for empty installations. Nested readings omit the site/meter IDs already
+present on the parent. Unknown options are rejected. Overviews and installation
+lists use ETags without a `Last-Modified` header. All operations require a user
+token with `generation:read` and enforce jurisdiction before conditional responses.
+
+The restored full seed has 238 reporting installations, stale fixture 239 and
+empty fixture 240. Seeded freshness ages naturally until data is extended;
+`seed:extend` is implemented in I7. I6 has not started.

@@ -1,3 +1,14 @@
+import { ApiError } from '../errors/api-error.js';
+
+export function requireRead(principal, chain) {
+  if (!canRead(principal, chain))
+    throw new ApiError(
+      'FORBIDDEN_JURISDICTION',
+      403,
+      'The requested resource is outside your jurisdiction.',
+    );
+}
+
 export function canRead(principal, chain) {
   if (
     principal?.kind !== 'user' ||

@@ -1,29 +1,13 @@
 import { ApiError } from '../errors/api-error.js';
-import { canRead } from '../policy/canRead.js';
-import { jurisdictionWhere } from './hierarchy-read.js';
+import { requireRead } from '../policy/canRead.js';
+import { serializeReading } from '../serializers/readings.js';
+export { serializeReading } from '../serializers/readings.js';
+import { jurisdictionWhere } from '../policy/readWhere.js';
 import { resolveHierarchy, parseId } from './hierarchy.js';
 import { parseHistoryQuery, parseTimestamp } from '../utils/read-time.js';
 import { collectionEnvelope, invalidQuery } from '../utils/pagination.js';
 import { now } from '../utils/clock.js';
 
-export function requireRead(principal, chain) {
-  if (!canRead(principal, chain))
-    throw new ApiError(
-      'FORBIDDEN_JURISDICTION',
-      403,
-      'The requested resource is outside your jurisdiction.',
-    );
-}
-export function serializeReading(row, siteId) {
-  return {
-    site_id: siteId,
-    meter_id: row.meter_id,
-    timestamp: row.timestamp.toISOString(),
-    power_Kw: row.power_Kw,
-    cumulative_energy_Kwh: row.cumulative_energy_Kwh,
-    voltage: row.voltage,
-  };
-}
 export function newestTimestamp(rows) {
   return rows.length
     ? new Date(Math.max(...rows.map((row) => row.timestamp.getTime())))

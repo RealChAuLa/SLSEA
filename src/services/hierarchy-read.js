@@ -1,8 +1,15 @@
 import { loadPaginationConfig } from '../config/data.js';
-import { canRead } from '../policy/canRead.js';
-import { scopeFilter } from '../policy/scopeFilter.js';
+import { requireRead as authorize } from '../policy/canRead.js';
+import { jurisdictionWhere } from '../policy/readWhere.js';
+export { jurisdictionWhere } from '../policy/readWhere.js';
+import {
+  reportingMeters,
+  pageLatestReadings,
+  operationalReading,
+} from './operational.js';
+import { loadOperationalConfig } from '../config/data.js';
+import { now } from '../utils/clock.js';
 import { resolveHierarchy, parseId } from './hierarchy.js';
-import { ApiError } from '../errors/api-error.js';
 import { serialize } from '../serializers/index.js';
 import {
   parsePagination,
@@ -23,39 +30,6 @@ const filters = {
   district_id: 'district',
   substation_id: 'substation',
 };
-function authorize(principal, chain) {
-  if (!canRead(principal, chain))
-    throw new ApiError(
-      'FORBIDDEN_JURISDICTION',
-      403,
-      'The requested resource is outside your jurisdiction.',
-    );
-}
-export function jurisdictionWhere(principal, resource) {
-  const scope = scopeFilter(principal);
-  if (scope.type === 'national') return {};
-  if (resource === 'province')
-    return {
-      province_id:
-        scope.type === 'province'
-          ? scope.id
-          : (principal.parent_province_id ?? -1),
-    };
-  if (resource === 'district')
-    return scope.type === 'province'
-      ? { province_id: scope.id }
-      : { district_id: scope.id };
-  if (resource === 'substation')
-    return scope.type === 'province'
-      ? { district: { province_id: scope.id } }
-      : { district_id: scope.id };
-  return {
-    substation:
-      scope.type === 'province'
-        ? { district: { province_id: scope.id } }
-        : { district_id: scope.id },
-  };
-}
 function filterWhere(field, id) {
   if (field === 'substation_id') return { substation_id: id };
   return {
@@ -75,6 +49,7 @@ export function validateListQuery(
     'page_size',
     'sort',
     ...(allowFilters ? Object.keys(filters) : []),
+    ...(resource === 'installation' ? ['reporting', 'include'] : []),
   ];
   for (const key of Object.keys(query))
     if (!allowed.includes(key))
@@ -89,7 +64,20 @@ export function validateListQuery(
       .filter((field) => query[field] !== undefined)
       .map((field) => [field, queryInteger(query[field], field)]),
   );
-  return { pagination, orderBy, filters: parsedFilters };
+  if (
+    query.reporting !== undefined &&
+    !['true', 'false'].includes(query.reporting)
+  )
+    throw invalidQuery('reporting', 'must be true or false');
+  if (query.include !== undefined && query.include !== 'last_known_reading')
+    throw invalidQuery('include', 'must be last_known_reading');
+  return {
+    pagination,
+    orderBy,
+    filters: parsedFilters,
+    reporting: query.reporting,
+    include: query.include,
+  };
 }
 export async function getAtomic(db, principal, resource, id) {
   const chain = await resolveHierarchy(db, resource, parseId(id));
@@ -111,6 +99,63 @@ export async function getCollection(db, req, resource, options = {}) {
     const chain = await resolveHierarchy(db, filters[field], id);
     authorize(req.principal, chain);
     predicates.push(filterWhere(field, id));
+  }
+  if (
+    resource === 'installation' &&
+    (parsed.reporting !== undefined || parsed.include !== undefined)
+  ) {
+    const clockTime = (options.clock ?? now)();
+    const { staleAfterMinutes } = loadOperationalConfig();
+    return db.$transaction(
+      async (tx) => {
+        if (parsed.reporting !== undefined) {
+          const meters = await reportingMeters(
+            tx,
+            req.principal,
+            {
+              filters: parsed.filters,
+              substationId: options.parent
+                ? parseId(req.params[options.parent.param])
+                : undefined,
+            },
+            clockTime,
+            staleAfterMinutes,
+          );
+          predicates.push({
+            meter_id:
+              parsed.reporting === 'true' ? { in: meters } : { notIn: meters },
+          });
+        }
+        const where = { AND: predicates };
+        const count = await tx.solarInstallation.count({ where });
+        const rows = await tx.solarInstallation.findMany({
+          where,
+          orderBy: parsed.orderBy,
+          skip: parsed.pagination.skip,
+          take: parsed.pagination.pageSize,
+        });
+        const latest = parsed.include
+          ? await pageLatestReadings(
+              tx,
+              rows.map((row) => row.meter_id),
+            )
+          : null;
+        const data = rows.map((row) => ({
+          ...serialize('installation', row),
+          ...(latest
+            ? {
+                last_known_reading: operationalReading(
+                  latest.get(row.meter_id),
+                  clockTime,
+                  { compact: true, staleAfterMinutes },
+                ),
+              }
+            : {}),
+        }));
+        return collectionEnvelope(req, data, count, parsed.pagination);
+      },
+      { isolationLevel: 'RepeatableRead', timeout: 15000, maxWait: 10000 },
+    );
   }
   const model = db[resources[resource].model];
   const where = { AND: predicates };

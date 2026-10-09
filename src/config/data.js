@@ -62,6 +62,14 @@ export function loadPaginationConfig(env = process.env) {
   });
 }
 
+export function loadOperationalConfig(env = process.env) {
+  const values = readConfig(
+    z.object({ STALE_AFTER_MINUTES: positiveInt.default(30) }),
+    env,
+  );
+  return Object.freeze({ staleAfterMinutes: values.STALE_AFTER_MINUTES });
+}
+
 export function loadMigrationConfig(
   env = process.env,
   { required = true } = {},
