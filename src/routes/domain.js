@@ -6,9 +6,7 @@ import {
 } from '../middleware/scopes.js';
 import { methodNotAllowed } from '../middleware/method-not-allowed.js';
 import { issueToken } from '../services/auth.js';
-import { serialize } from '../serializers/index.js';
 import { signUserToken, verifyToken } from '../utils/jwt.js';
-import { sendRepresentation } from '../utils/representation.js';
 import { ApiError } from '../errors/api-error.js';
 import { getAtomic, getCollection } from '../services/hierarchy-read.js';
 import { sendConditional } from '../utils/conditional.js';
@@ -17,6 +15,7 @@ import { registerReadingRoutes } from './readings.js';
 import { registerOperationalRoutes } from './operational.js';
 import { registerRegionRoutes } from './regions.js';
 import { registerTrendRoutes } from './trends.js';
+import { registerUserRoutes } from './users.js';
 
 function emptyDomainQuery(req, _res, next) {
   if (Object.keys(req.query).length) {
@@ -44,19 +43,10 @@ export function registerDomainRoutes(
       const result = await issueToken(await getDb(), tokens, req.body);
       res.set('Cache-Control', 'no-store').json(result);
     });
-  app
-    .route('/v1/users/me')
-    .all(methodNotAllowed(['GET']))
-    .get(
-      auth,
-      requireUserToken,
-      requireScope('account:manage'),
-      emptyDomainQuery,
-      (req, res) => {
-        res.set('Cache-Control', 'private, no-cache');
-        sendRepresentation(res, serialize('user', req.user));
-      },
-    );
+  registerUserRoutes(app, {
+    getDb,
+    accounts: [auth, requireUserToken, requireScope('account:manage')],
+  });
 
   const reads = [auth, requireUserToken, requireScope('generation:read')];
   const collection = (path, resource, options = {}) => {

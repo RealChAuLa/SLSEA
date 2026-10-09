@@ -3,7 +3,8 @@
 The owner authorized I0 Foundations and subsequently authorized I1 authoring with
 verification deferred. Project details come from `project.md`; delivery order
 comes from `implementation_plan.md`. The REST API white paper was not supplied.
-No I2 work or owner deployment has been performed.
+The entries below record subsequent authorized increments through I9. Initial
+assumptions are retained as historical notes. No owner deployment is claimed.
 
 ## Assumptions and contract decisions
 
@@ -247,3 +248,12 @@ implementation, but were not executed. I1 is not marked complete or tagged.
 - Assumptions: installation trends use scope.type installation, requiring a separate TrendScope schema rather than widening the summary-only schema. In-memory pagination operates on at most 168 hourly or 92 daily buckets. Full-seed timing includes authentication and network latency.
 - Validation: 169 tests/24 suites plus build/lint/YAML+JSON checks passed. Controlled data verifies midnight at 18:30Z, hour boundaries, predecessor absence/lookback, resets, zero-fill, daily/hourly and station/site composition, root scopes, strict queries, access-before-conditionals, methods, pagination and meta. Full seed restored and all 240 tokens verified; default-app national seven-day trend returned seven buckets over 157716 readings in 539 ms, and its ETag returned 304. No Docker/local database or next-phase work.
 - Repair commits: I7 820ef22 (i7-summaries-freshness); I8 implementation is located by completion tag i8-generation-trends. No push or remote CI claimed. I9 is authorized next; I10 has not started.
+
+### 2026-10-09 — I9 accounts and passwords
+
+- Tool/model: OpenAI Codex, GPT-6. Prompt: docs/prompts/i9-account-passwords.md; owner requested I8 then I9 using project.md and supplied Neon without Docker.
+- Generated: pure strict-level/jurisdiction management policy, bounded scoped user lists, own/managed profile reads, strict self-change/reset validators, password changes under caller/target row locks, account routes, OpenAPI schemas and unit/integration regressions. /users/me is registered before the numeric route. Public serializers whitelist fields; list/profile SQL selects no hash.
+- Review: national users manage only provincial/district users, provincial users only their own district users, district users none. Same-level targets are excluded; self is allowed only through separate self behavior. Password input counts Unicode code points, requires a letter/digit and enforces bcrypt's 72-byte limit without trimming or normalization. Hashing uses cost 12. Caller and target IDs lock in ascending order; the authenticated caller's password hash is rechecked under the lock so a competing old-token request cannot overwrite an update. This supplements the existing per-request pv check without adding schema columns.
+- Repairs: the first Unicode length test accidentally supplied ten characters for a below-ten case; it now supplies nine. I2's /me method guard test now expects GET, PATCH and leaves PATCH behavior to I9 tests. The ignored acceptance script's installation-count lookup was corrected to the SolarInstallation model; its cleanup restored demo passwords before the successful rerun. Rate limiting remains explicitly in I10.
+- Validation: 196 tests/26 suites passed, including the nine reset cases, all 49 caller/target profile combinations, scoped pagination/ETags, strict IDs/queries/bodies, device/anonymous denial on GET and PATCH, wrong current/same/invalid passwords, numeric self behavior, login/revocation, log privacy and concurrent updates. Build/lint and YAML+JSON checks passed. Default-app Neon acceptance verified seven demo logins, scoped counts, conditional profiles and both write flows with revoked old tokens. Full seed and 240 credentials reverified, and all seven original demo passwords restored after acceptance. No Docker/local database used.
+- Repair commits: I8 5070792 (i8-generation-trends); I9 implementation is located by completion tag i9-account-passwords. No push or remote CI claimed. I10 has not started.

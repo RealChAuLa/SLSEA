@@ -6,13 +6,13 @@ principals for devices and staff, and Vercel hosting. [project.md](project.md)
 defines the contract; [implementation_plan.md](implementation_plan.md) defines
 the increments.
 
-**Current increment: I8 Generation trends, verified; I9 is authorized next.**
+**Current increment: I9 Account and password management, verified.**
 I2 authentication/policy (58a0bc0) and I3 hierarchy reads (1874853) are complete.
 I4 adds the three history GETs, deterministic seven-day reading seed and
 Last-Modified/If-Modified-Since. I5 adds last-known readings, installation
 overviews, reporting filters and latest-reading list includes. I6 adds device ingestion and the HTTP simulator;
-I7 adds regional summaries and history extension. I8 adds generation trends. All 169 tests
-passed across 24 suites; build, lint and OpenAPI validation passed. The full supplied Neon database holds 240
+I7 adds regional summaries and history extension. I8 adds generation trends; I9 adds scoped account management and password changes. All 196 tests
+passed across 26 suites; build, lint and OpenAPI validation passed. The full supplied Neon database holds 240
 installations and 160,584 readings, with 240 verified device credentials.
 No Docker/local database was used. I10 has not started.
 
@@ -226,7 +226,7 @@ npm run spec:lint
 npm test
 ```
 
-I1 through I8 have been verified locally against the supplied Neon database.
+I1 through I9 have been verified locally against the supplied Neon database.
 
 Tests cover the public endpoints, uniform errors, security headers, negotiation,
 method guards, JSON/body limits, CORS, configuration, safe logging, clock control,
@@ -433,5 +433,37 @@ full seven-day seed and 240 credentials were restored after fixtures. The
 national seven-day daily trend returned seven buckets over
 157,716 readings in 539 ms including network/authentication;
 its repeated ETag returned 304. This replaces the prior extension-smoke dataset
-with the original full seed (160,584 readings). I9 is authorized next; I10 has
+with the original full seed (160,584 readings). I9 is described below; I10 has
 not started. No push or remote CI success is claimed.
+
+## Account and password management (I9)
+
+GET /v1/users lists only users the caller may manage, with page/page_size and
+sort=name (default) or -name. National users manage provincial and district
+users; provincial users manage district users within their own province; district
+users get an empty collection. Same-level users are never manageable.
+GET /v1/users/{userId} allows self or a manageable user; /v1/users/me reads
+the caller's profile. Every account route requires a user token with account:manage.
+Profiles expose only user_id, name, email, jurisdiction_type and jurisdiction_id.
+GETs support ETag/304 and have no Last-Modified. Unknown queries are rejected.
+
+PATCH /v1/users/me requires exactly current_password and new_password. A wrong
+current password returns 403 CURRENT_PASSWORD_INCORRECT; an unchanged password
+returns 400 VALIDATION_FAILED. PATCH /v1/users/{userId} resets a manageable user's
+password and requires exactly new_password, rejecting current_password. When the
+numeric ID is the caller's own ID, it follows the self-change rules instead.
+
+New passwords require at least ten Unicode characters, a letter and a digit,
+and at most 72 UTF-8 bytes to avoid bcrypt truncation. Passwords are stored with
+bcrypt cost 12. Successful changes return an empty 204 and immediately revoke
+all existing target-user tokens; log in with the new password for a fresh token.
+Caller/target rows are locked in a consistent order and the caller's password
+version is rechecked before an update, preventing a concurrent old-token request
+from overwriting a password change. Rate limiting belongs to I10.
+
+I9 passed 196 tests/26 suites, build/lint and YAML/JSON validation. The supplied
+Neon database alone was used. Default-app acceptance verified all seven demo
+logins, scoped collection counts, conditional profiles, self-change, higher-level
+reset, and old-token revocation. The full 240-installation/160,584-reading seed,
+240 device credentials and all seven demo passwords were restored and checked.
+No push or remote CI success is claimed. I10 has not started.

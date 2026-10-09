@@ -411,18 +411,20 @@ ORDER BY 1;
 
 ## I9: Account & password management
 
+**Status (2026-10-09):** Implemented and verified: 196 tests/26 suites, build/lint/spec and default-app Neon acceptance passed. Strict scoped list/profile policy, self-change and reset bodies, bcrypt cost 12, 204 responses, password-version revocation and concurrent-change protection are covered. Full 160,584-reading seed, 240 credentials and seven demo passwords restored and checked. I8 commit: 5070792; I9 completion tag: i9-account-passwords. I10 has not started. No push or remote CI claimed.
+
 **Goal:** users change their own password; higher-jurisdiction users reset forgotten passwords.
 **Builds on:** I8. **Refs:** §4.6, §5.4–5.5.
 
 **Tasks**
-- [ ] `src/policy/manageUser.js`: pure `canManageUser(caller, targetChain)` — caller level strictly higher than the target's **and** target inside the caller's jurisdiction (national → any provincial/district user; provincial → district users whose `district.province_id` equals the caller's `jurisdiction_id`; district → none; same level never). A service resolves the target's province from its district when needed.
-- [ ] Password policy validator: ≥ 10 characters, at least one letter and one digit.
-- [ ] `GET /v1/users`: paginated list (`sort=name`), restricted to users the caller may manage (national: all provincial + district users; provincial: district users of their province; district: empty, still `200`). Excludes the caller. ETag/304.
-- [ ] `GET /v1/users/{userId}`: self or manageable user; otherwise `403 FORBIDDEN_JURISDICTION`; unknown → `404`. Route `/users/me` is registered **before** `/users/{userId}`.
-- [ ] `PATCH /v1/users/me`: strict body `{ current_password, new_password }`; wrong current → `403 CURRENT_PASSWORD_INCORRECT`; new must satisfy the policy and differ from the current one (`400 VALIDATION_FAILED` with `details`); hash and store; `204`.
-- [ ] `PATCH /v1/users/{userId}`: strict body `{ new_password }` (a supplied `current_password` → `400`); if `userId` equals the caller's id treat it exactly as `PATCH /users/me`; otherwise require `canManageUser`; `204`.
-- [ ] After any change the target's existing tokens fail with `401 TOKEN_REVOKED` (the `pv` mechanism from I2 does this automatically; verify it).
-- [ ] All `/users` routes require a user token with scope `account:manage`; `405` for `POST`/`PUT`/`DELETE`.
+- [x] `src/policy/manageUser.js`: pure `canManageUser(caller, targetChain)` — caller level strictly higher than the target's **and** target inside the caller's jurisdiction (national → any provincial/district user; provincial → district users whose `district.province_id` equals the caller's `jurisdiction_id`; district → none; same level never). A service resolves the target's province from its district when needed.
+- [x] Password policy validator: ≥ 10 characters, at least one letter and one digit.
+- [x] `GET /v1/users`: paginated list (`sort=name`), restricted to users the caller may manage (national: all provincial + district users; provincial: district users of their province; district: empty, still `200`). Excludes the caller. ETag/304.
+- [x] `GET /v1/users/{userId}`: self or manageable user; otherwise `403 FORBIDDEN_JURISDICTION`; unknown → `404`. Route `/users/me` is registered **before** `/users/{userId}`.
+- [x] `PATCH /v1/users/me`: strict body `{ current_password, new_password }`; wrong current → `403 CURRENT_PASSWORD_INCORRECT`; new must satisfy the policy and differ from the current one (`400 VALIDATION_FAILED` with `details`); hash and store; `204`.
+- [x] `PATCH /v1/users/{userId}`: strict body `{ new_password }` (a supplied `current_password` → `400`); if `userId` equals the caller's id treat it exactly as `PATCH /users/me`; otherwise require `canManageUser`; `204`.
+- [x] After any change the target's existing tokens fail with `401 TOKEN_REVOKED` (the `pv` mechanism from I2 does this automatically; verify it).
+- [x] All `/users` routes require a user token with scope `account:manage`; `405` for `POST`/`PUT`/`DELETE`.
 
 **OpenAPI:** `/users`, `/users/me` (GET, PATCH), `/users/{userId}` (GET, PATCH) with the two distinct PATCH request bodies.
 

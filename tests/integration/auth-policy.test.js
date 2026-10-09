@@ -166,9 +166,8 @@ test('auth resource methods are exact and me query is strict', async () => {
   for (const [path, method, allow] of [
     ['/v1/auth/tokens', 'get', 'POST'],
     ['/v1/auth/tokens', 'put', 'POST'],
-    ['/v1/users/me', 'head', 'GET'],
-    ['/v1/users/me', 'delete', 'GET'],
-    ['/v1/users/me', 'patch', 'GET'],
+    ['/v1/users/me', 'head', 'GET, PATCH'],
+    ['/v1/users/me', 'delete', 'GET, PATCH'],
   ]) {
     const agent = request(app);
     const res = await agent[method](path).set(
