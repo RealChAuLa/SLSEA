@@ -10,6 +10,7 @@ import { errorHandler } from './errors/handler.js';
 import { registerPublicRoutes } from './routes/public.js';
 import { registerDomainRoutes } from './routes/domain.js';
 import { bootstrapCspHash } from './controllers/docs.js';
+import { requestLimits } from './middleware/rate-limits.js';
 
 export function createApp({
   config = defaultConfig,
@@ -66,6 +67,9 @@ export function createApp({
         'Location',
         'Allow',
         'WWW-Authenticate',
+        'Retry-After',
+        'RateLimit',
+        'RateLimit-Policy',
       ],
     }),
   );
@@ -73,6 +77,7 @@ export function createApp({
     if (req.method === 'GET') res.vary('Accept').vary('Authorization');
     next();
   });
+  app.use(requestLimits(config.rateLimitEnabled));
   app.use(negotiation);
   app.use(
     express.json({

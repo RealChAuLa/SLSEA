@@ -2,8 +2,8 @@
   "openapi": "3.0.3",
   "info": {
     "title": "SLSEA Solar Generation Data API",
-    "version": "0.9.0",
-    "description": "I9 Account/password management, generation trends, regional summaries, device ingestion, operational reads, reading history, hierarchy, authentication and policy. Health and documentation remain public.\nDomain endpoints use /v1 and JWT bearer authentication. Every user operation\nrequires its documented scope; all errors use the Error schema.\nDemo password: Solar#Demo2026 (all seven seeded users).\nDemo logins: national.operator@slsea.lk, national.analyst@slsea.lk,\nwestern.province@slsea.lk, central.province@slsea.lk,\ncolombo.district@slsea.lk, gampaha.district@slsea.lk, kandy.district@slsea.lk.\n",
+    "version": "1.0.0",
+    "description": "I9 Account/password management, generation trends, regional summaries, device ingestion, operational reads, reading history, hierarchy, authentication and policy. Health and documentation remain public.\nDomain endpoints use /v1 and JWT bearer authentication. Every user operation\nrequires its documented scope; all errors use the Error schema.\nDemo password: Solar#Demo2026 (all seven seeded users).\nDemo logins: national.operator@slsea.lk, national.analyst@slsea.lk,\nwestern.province@slsea.lk, central.province@slsea.lk,\ncolombo.district@slsea.lk, gampaha.district@slsea.lk, kandy.district@slsea.lk.\n\nI10 hardening: per-process/IP limits enabled by default: 600 requests/minute globally, 30 login attempts/15 minutes, and 10 password PATCH attempts/15 minutes shared across /users/me and numeric IDs. Serverless counters are best effort and reset across instances. Oversized JSON (>10 KiB) returns 400 VALIDATION_FAILED, following the project error contract.",
     "license": {
       "name": "Private project; all rights reserved",
       "url": "https://www.energy.gov.lk/"
@@ -115,6 +115,9 @@
           "415": {
             "$ref": "#/components/responses/UnsupportedMediaType"
           },
+          "429": {
+            "$ref": "#/components/responses/RateLimited"
+          },
           "500": {
             "$ref": "#/components/responses/InternalError"
           }
@@ -202,6 +205,9 @@
           "415": {
             "$ref": "#/components/responses/UnsupportedMediaType"
           },
+          "429": {
+            "$ref": "#/components/responses/RateLimited"
+          },
           "500": {
             "$ref": "#/components/responses/InternalError"
           }
@@ -265,6 +271,9 @@
           },
           "415": {
             "$ref": "#/components/responses/UnsupportedMediaType"
+          },
+          "429": {
+            "$ref": "#/components/responses/RateLimited"
           },
           "500": {
             "$ref": "#/components/responses/InternalError"
@@ -339,6 +348,9 @@
           "415": {
             "$ref": "#/components/responses/UnsupportedMediaType"
           },
+          "429": {
+            "$ref": "#/components/responses/RateLimited"
+          },
           "500": {
             "$ref": "#/components/responses/InternalError"
           }
@@ -404,6 +416,9 @@
           "415": {
             "$ref": "#/components/responses/UnsupportedMediaType"
           },
+          "429": {
+            "$ref": "#/components/responses/RateLimited"
+          },
           "500": {
             "$ref": "#/components/responses/InternalError"
           }
@@ -423,7 +438,7 @@
           "Accounts"
         ],
         "summary": "Change own password",
-        "description": "Requires a user token with account:manage. Unknown queries and body fields rejected. Both current_password and new_password required. Wrong current returns 403 CURRENT_PASSWORD_INCORRECT; new must differ from current. Policy failures return 400 VALIDATION_FAILED with details. Hash with bcrypt cost 12. Atomic password update rechecks caller revocation under locks; success invalidates target tokens via pwVersion. Conditional GET headers do not suppress a password update. Rate limiting is introduced in I10.",
+        "description": "Requires a user token with account:manage. Unknown queries and body fields rejected. Both current_password and new_password required. Wrong current returns 403 CURRENT_PASSWORD_INCORRECT; new must differ from current. Policy failures return 400 VALIDATION_FAILED with details. Hash with bcrypt cost 12. Atomic password update rechecks caller revocation under locks; success invalidates target tokens via pwVersion. Conditional GET headers do not suppress a password update. Password PATCH requests share a 10-attempt/15-minute per-IP limit.",
         "parameters": [],
         "requestBody": {
           "required": true,
@@ -463,6 +478,9 @@
           },
           "415": {
             "$ref": "#/components/responses/UnsupportedMediaType"
+          },
+          "429": {
+            "$ref": "#/components/responses/RateLimited"
           },
           "500": {
             "$ref": "#/components/responses/InternalError"
@@ -550,6 +568,9 @@
           "415": {
             "$ref": "#/components/responses/UnsupportedMediaType"
           },
+          "429": {
+            "$ref": "#/components/responses/RateLimited"
+          },
           "500": {
             "$ref": "#/components/responses/InternalError"
           }
@@ -633,6 +654,9 @@
           },
           "415": {
             "$ref": "#/components/responses/UnsupportedMediaType"
+          },
+          "429": {
+            "$ref": "#/components/responses/RateLimited"
           },
           "500": {
             "$ref": "#/components/responses/InternalError"
@@ -730,6 +754,9 @@
           "415": {
             "$ref": "#/components/responses/UnsupportedMediaType"
           },
+          "429": {
+            "$ref": "#/components/responses/RateLimited"
+          },
           "500": {
             "$ref": "#/components/responses/InternalError"
           }
@@ -813,6 +840,9 @@
           },
           "415": {
             "$ref": "#/components/responses/UnsupportedMediaType"
+          },
+          "429": {
+            "$ref": "#/components/responses/RateLimited"
           },
           "500": {
             "$ref": "#/components/responses/InternalError"
@@ -910,6 +940,9 @@
           "415": {
             "$ref": "#/components/responses/UnsupportedMediaType"
           },
+          "429": {
+            "$ref": "#/components/responses/RateLimited"
+          },
           "500": {
             "$ref": "#/components/responses/InternalError"
           }
@@ -993,6 +1026,9 @@
           },
           "415": {
             "$ref": "#/components/responses/UnsupportedMediaType"
+          },
+          "429": {
+            "$ref": "#/components/responses/RateLimited"
           },
           "500": {
             "$ref": "#/components/responses/InternalError"
@@ -1096,6 +1132,9 @@
           "415": {
             "$ref": "#/components/responses/UnsupportedMediaType"
           },
+          "429": {
+            "$ref": "#/components/responses/RateLimited"
+          },
           "500": {
             "$ref": "#/components/responses/InternalError"
           }
@@ -1197,6 +1236,9 @@
           "415": {
             "$ref": "#/components/responses/UnsupportedMediaType"
           },
+          "429": {
+            "$ref": "#/components/responses/RateLimited"
+          },
           "500": {
             "$ref": "#/components/responses/InternalError"
           }
@@ -1280,6 +1322,9 @@
           },
           "415": {
             "$ref": "#/components/responses/UnsupportedMediaType"
+          },
+          "429": {
+            "$ref": "#/components/responses/RateLimited"
           },
           "500": {
             "$ref": "#/components/responses/InternalError"
@@ -1389,6 +1434,9 @@
           "415": {
             "$ref": "#/components/responses/UnsupportedMediaType"
           },
+          "429": {
+            "$ref": "#/components/responses/RateLimited"
+          },
           "500": {
             "$ref": "#/components/responses/InternalError"
           }
@@ -1484,6 +1532,9 @@
           },
           "415": {
             "$ref": "#/components/responses/UnsupportedMediaType"
+          },
+          "429": {
+            "$ref": "#/components/responses/RateLimited"
           },
           "500": {
             "$ref": "#/components/responses/InternalError"
@@ -1584,6 +1635,9 @@
           },
           "415": {
             "$ref": "#/components/responses/UnsupportedMediaType"
+          },
+          "429": {
+            "$ref": "#/components/responses/RateLimited"
           },
           "500": {
             "$ref": "#/components/responses/InternalError"
@@ -1695,6 +1749,9 @@
           "415": {
             "$ref": "#/components/responses/UnsupportedMediaType"
           },
+          "429": {
+            "$ref": "#/components/responses/RateLimited"
+          },
           "500": {
             "$ref": "#/components/responses/InternalError"
           }
@@ -1794,6 +1851,9 @@
           },
           "415": {
             "$ref": "#/components/responses/UnsupportedMediaType"
+          },
+          "429": {
+            "$ref": "#/components/responses/RateLimited"
           },
           "500": {
             "$ref": "#/components/responses/InternalError"
@@ -1912,6 +1972,9 @@
           "415": {
             "$ref": "#/components/responses/UnsupportedMediaType"
           },
+          "429": {
+            "$ref": "#/components/responses/RateLimited"
+          },
           "500": {
             "$ref": "#/components/responses/InternalError"
           }
@@ -1996,6 +2059,9 @@
           },
           "415": {
             "$ref": "#/components/responses/UnsupportedMediaType"
+          },
+          "429": {
+            "$ref": "#/components/responses/RateLimited"
           },
           "500": {
             "$ref": "#/components/responses/InternalError"
@@ -2092,6 +2158,9 @@
           "415": {
             "$ref": "#/components/responses/UnsupportedMediaType"
           },
+          "429": {
+            "$ref": "#/components/responses/RateLimited"
+          },
           "500": {
             "$ref": "#/components/responses/InternalError"
           }
@@ -2187,6 +2256,9 @@
           "415": {
             "$ref": "#/components/responses/UnsupportedMediaType"
           },
+          "429": {
+            "$ref": "#/components/responses/RateLimited"
+          },
           "500": {
             "$ref": "#/components/responses/InternalError"
           }
@@ -2281,6 +2353,9 @@
           },
           "415": {
             "$ref": "#/components/responses/UnsupportedMediaType"
+          },
+          "429": {
+            "$ref": "#/components/responses/RateLimited"
           },
           "500": {
             "$ref": "#/components/responses/InternalError"
@@ -2434,6 +2509,9 @@
           },
           "415": {
             "$ref": "#/components/responses/UnsupportedMediaType"
+          },
+          "429": {
+            "$ref": "#/components/responses/RateLimited"
           },
           "500": {
             "$ref": "#/components/responses/InternalError"
@@ -2598,6 +2676,9 @@
           "415": {
             "$ref": "#/components/responses/UnsupportedMediaType"
           },
+          "429": {
+            "$ref": "#/components/responses/RateLimited"
+          },
           "500": {
             "$ref": "#/components/responses/InternalError"
           }
@@ -2760,6 +2841,9 @@
           },
           "415": {
             "$ref": "#/components/responses/UnsupportedMediaType"
+          },
+          "429": {
+            "$ref": "#/components/responses/RateLimited"
           },
           "500": {
             "$ref": "#/components/responses/InternalError"
@@ -2924,6 +3008,9 @@
           "415": {
             "$ref": "#/components/responses/UnsupportedMediaType"
           },
+          "429": {
+            "$ref": "#/components/responses/RateLimited"
+          },
           "500": {
             "$ref": "#/components/responses/InternalError"
           }
@@ -3087,6 +3174,9 @@
           "415": {
             "$ref": "#/components/responses/UnsupportedMediaType"
           },
+          "429": {
+            "$ref": "#/components/responses/RateLimited"
+          },
           "500": {
             "$ref": "#/components/responses/InternalError"
           }
@@ -3173,6 +3263,9 @@
           "415": {
             "$ref": "#/components/responses/UnsupportedMediaType"
           },
+          "429": {
+            "$ref": "#/components/responses/RateLimited"
+          },
           "500": {
             "$ref": "#/components/responses/InternalError"
           }
@@ -3255,6 +3348,9 @@
           "415": {
             "$ref": "#/components/responses/UnsupportedMediaType"
           },
+          "429": {
+            "$ref": "#/components/responses/RateLimited"
+          },
           "500": {
             "$ref": "#/components/responses/InternalError"
           }
@@ -3266,7 +3362,7 @@
           "Accounts"
         ],
         "summary": "Reset a manageable user password",
-        "description": "Requires a user token with account:manage. Unknown queries and body fields rejected. For another user, only new_password is allowed; current_password is rejected. Caller must have strictly higher level and target inside jurisdiction. If userId equals caller ID, use the exact self-change rules and SelfPasswordChange body. Policy failures return 400 VALIDATION_FAILED with details. Hash with bcrypt cost 12. Atomic password update rechecks caller revocation under locks; success invalidates target tokens via pwVersion. Conditional GET headers do not suppress a password update. Rate limiting is introduced in I10.",
+        "description": "Requires a user token with account:manage. Unknown queries and body fields rejected. For another user, only new_password is allowed; current_password is rejected. Caller must have strictly higher level and target inside jurisdiction. If userId equals caller ID, use the exact self-change rules and SelfPasswordChange body. Policy failures return 400 VALIDATION_FAILED with details. Hash with bcrypt cost 12. Atomic password update rechecks caller revocation under locks; success invalidates target tokens via pwVersion. Conditional GET headers do not suppress a password update. Password PATCH requests share a 10-attempt/15-minute per-IP limit.",
         "parameters": [
           {
             "name": "userId",
@@ -3323,6 +3419,9 @@
           },
           "415": {
             "$ref": "#/components/responses/UnsupportedMediaType"
+          },
+          "429": {
+            "$ref": "#/components/responses/RateLimited"
           },
           "500": {
             "$ref": "#/components/responses/InternalError"
@@ -3388,6 +3487,25 @@
           "type": "string"
         },
         "example": "private, no-cache"
+      },
+      "RetryAfter": {
+        "description": "Seconds until the current rate-limit window resets.",
+        "schema": {
+          "type": "integer",
+          "minimum": 1
+        }
+      },
+      "RateLimit": {
+        "description": "Combined draft-8 rate-limit policy counters.",
+        "schema": {
+          "type": "string"
+        }
+      },
+      "RateLimitPolicy": {
+        "description": "Combined draft-8 rate-limit policy windows.",
+        "schema": {
+          "type": "string"
+        }
       }
     },
     "schemas": {
@@ -4790,8 +4908,17 @@
         }
       },
       "RateLimited": {
-        "description": "Too many requests",
+        "description": "Request limit exceeded: 429 RATE_LIMITED. Counters are per process/IP; serverless enforcement is best effort.",
         "headers": {
+          "Retry-After": {
+            "$ref": "#/components/headers/RetryAfter"
+          },
+          "RateLimit": {
+            "$ref": "#/components/headers/RateLimit"
+          },
+          "RateLimit-Policy": {
+            "$ref": "#/components/headers/RateLimitPolicy"
+          },
           "X-Request-Id": {
             "$ref": "#/components/headers/RequestId"
           }
@@ -4800,6 +4927,15 @@
           "application/json": {
             "schema": {
               "$ref": "#/components/schemas/Error"
+            },
+            "example": {
+              "error": {
+                "code": "RATE_LIMITED",
+                "message": "Too many requests. Retry after the indicated delay.",
+                "status": 429,
+                "details": [],
+                "request_id": "12345678-1234-4123-8123-123456789abc"
+              }
             }
           }
         }

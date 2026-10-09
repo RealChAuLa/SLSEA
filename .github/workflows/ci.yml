@@ -2,28 +2,23 @@ name: CI
 on:
   push:
   pull_request:
+  workflow_dispatch:
 permissions:
   contents: read
+concurrency:
+  group: slsea-neon-tests
+  cancel-in-progress: false
 jobs:
   quality:
     runs-on: ubuntu-latest
-    services:
-      postgres:
-        image: postgres:17
-        env:
-          POSTGRES_USER: slsea_test
-          POSTGRES_PASSWORD: ci_only_password
-          POSTGRES_DB: slsea_test
-        ports:
-          - 5432:5432
-        options: >-
-          --health-cmd "pg_isready -U slsea_test -d slsea_test"
-          --health-interval 10s
-          --health-timeout 5s
-          --health-retries 5
     env:
       NODE_ENV: test
-      TEST_DATABASE_URL: postgresql://slsea_test:ci_only_password@localhost:5432/slsea_test
+      RATE_LIMIT_ENABLED: 'false'
+      DATABASE_URL: ${{ secrets.DATABASE_URL }}
+      DIRECT_URL: ${{ secrets.DIRECT_URL }}
+      TEST_DATABASE_URL: ${{ secrets.TEST_DATABASE_URL }}
+      TEST_ALLOW_SHARED_DATABASE: ${{ secrets.TEST_ALLOW_SHARED_DATABASE }}
+      JWT_SECRET: ${{ secrets.JWT_SECRET }}
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -34,4 +29,11 @@ jobs:
       - run: npm run build
       - run: npm run lint
       - run: npm run spec:lint
-      - run: npm test
+      - name: Validate owner-provided Neon settings
+        run: node --input-type=module -e "import {loadSeedConfig,loadTestDatabaseConfig} from './src/config/data.js'; loadSeedConfig(); loadTestDatabaseConfig();"
+      - name: Unit, integration, security, parity and method sweep
+        id: tests
+        run: npm test
+      - name: Restore full demo seed after database tests
+        if: ${{ always() && steps.tests.outcome != '' && steps.tests.outcome != 'skipped' }}
+        run: npm run seed -- --yes

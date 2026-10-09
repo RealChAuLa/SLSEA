@@ -1,4 +1,9 @@
 @baseUrl = http://localhost:3000
+@userToken = paste-a-user-token-here
+@deviceToken = paste-site-1-device-token-here
+@currentPassword = Solar#Demo2026
+@newPassword = Brighter#Sun2027
+@readingTimestamp = {{$datetime iso8601}}
 
 ### Public health
 GET {{baseUrl}}/health
@@ -34,3 +39,63 @@ POST {{baseUrl}}/v1/unimplemented
 Content-Type: application/json
 
 {"invalid":
+
+### Login national operator (Swagger lists all seven demo emails)
+POST {{baseUrl}}/v1/auth/tokens
+Content-Type: application/json
+
+{"email":"national.operator@slsea.lk","password":"{{currentPassword}}"}
+
+### Own profile
+GET {{baseUrl}}/v1/users/me
+Authorization: Bearer {{userToken}}
+
+### Manageable users
+GET {{baseUrl}}/v1/users?sort=name&page_size=2
+Authorization: Bearer {{userToken}}
+
+### Hierarchy and scoped collections
+GET {{baseUrl}}/v1/provinces/1/districts
+Authorization: Bearer {{userToken}}
+
+### Installation overview
+GET {{baseUrl}}/v1/installations/1/overview
+Authorization: Bearer {{userToken}}
+
+### Regional summary (scope comes from the caller)
+GET {{baseUrl}}/v1/generation-summary
+Authorization: Bearer {{userToken}}
+
+### History; copy its ETag to the conditional request below
+GET {{baseUrl}}/v1/installations/1/readings?page_size=50
+Authorization: Bearer {{userToken}}
+
+### Conditional history (replace placeholder with the returned ETag)
+GET {{baseUrl}}/v1/installations/1/readings?page_size=50
+Authorization: Bearer {{userToken}}
+If-None-Match: "paste-returned-etag"
+
+### Trend (adjust dates to your seeded window)
+GET {{baseUrl}}/v1/generation-trend?from=2026-10-08T18:30:00Z&to=2026-10-09T18:30:00Z&interval=day
+Authorization: Bearer {{userToken}}
+
+### Device ingest: set counter >= the predecessor's counter before sending
+POST {{baseUrl}}/v1/installations/1/readings
+Authorization: Bearer {{deviceToken}}
+Content-Type: application/json
+
+{"timestamp":"{{readingTimestamp}}","power_Kw":1,"cumulative_energy_Kwh":10000,"voltage":230}
+
+### Self-change: revokes userToken; log in with newPassword afterward
+PATCH {{baseUrl}}/v1/users/me
+Authorization: Bearer {{userToken}}
+Content-Type: application/json
+
+{"current_password":"{{currentPassword}}","new_password":"{{newPassword}}"}
+
+### Higher-jurisdiction reset (site-independent user ID; national user can reset user 3)
+PATCH {{baseUrl}}/v1/users/3
+Authorization: Bearer {{userToken}}
+Content-Type: application/json
+
+{"new_password":"{{newPassword}}"}

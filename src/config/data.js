@@ -87,6 +87,20 @@ export function loadSimulationConfig(env = process.env) {
   };
 }
 
+export function loadSmokeConfig(env = process.env) {
+  const values = readConfig(
+    z.object({
+      SEED_DEMO_PASSWORD: z.string().min(10).default('Solar#Demo2026'),
+      API_BASE_URL: z.string().default('http://localhost:3000'),
+    }),
+    env,
+  );
+  return Object.freeze({
+    demoPassword: values.SEED_DEMO_PASSWORD,
+    apiBaseUrl: values.API_BASE_URL,
+  });
+}
+
 export function loadMigrationConfig(
   env = process.env,
   { required = true } = {},

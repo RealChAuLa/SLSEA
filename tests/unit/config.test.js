@@ -4,6 +4,7 @@ test('I0 runs without database credentials or JWT secrets', () => {
   expect(loadConfig({})).toEqual({
     nodeEnv: 'development',
     port: 3000,
+    rateLimitEnabled: true,
     corsOrigins: [],
   });
 });
@@ -19,12 +20,14 @@ test('config parses runtime values and trims/deduplicates origin lists', () => {
   ).toEqual({
     nodeEnv: 'production',
     port: 8080,
+    rateLimitEnabled: true,
     corsOrigins: ['https://a.example.com', 'http://localhost:3000'],
   });
 });
 
 test.each([
   { NODE_ENV: 'invalid' },
+  { RATE_LIMIT_ENABLED: 'yes' },
   { PORT: '' },
   { PORT: '0' },
   { PORT: '65536' },

@@ -61,6 +61,7 @@ export function errorHandler(logger) {
     }
 
     if (failure.status === 401) res.set('WWW-Authenticate', 'Bearer');
+    res.set('Cache-Control', 'no-store');
     res.status(failure.status).json({
       error: {
         code: failure.code,

@@ -17,7 +17,7 @@ function positive(value, label, max = 2147483647) {
     );
   return Number(value);
 }
-function apiUrl(value) {
+export function apiUrl(value) {
   try {
     const url = new URL(value);
     if (

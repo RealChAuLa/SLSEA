@@ -1,8 +1,8 @@
 openapi: 3.0.3
 info:
   title: SLSEA Solar Generation Data API
-  version: 0.9.0
-  description: >
+  version: 1.0.0
+  description: >-
     I9 Account/password management, generation trends, regional summaries, device ingestion,
     operational reads, reading history, hierarchy, authentication and policy. Health and
     documentation remain public.
@@ -18,6 +18,12 @@ info:
     western.province@slsea.lk, central.province@slsea.lk,
 
     colombo.district@slsea.lk, gampaha.district@slsea.lk, kandy.district@slsea.lk.
+
+
+    I10 hardening: per-process/IP limits enabled by default: 600 requests/minute globally, 30 login
+    attempts/15 minutes, and 10 password PATCH attempts/15 minutes shared across /users/me and
+    numeric IDs. Serverless counters are best effort and reset across instances. Oversized JSON (>10
+    KiB) returns 400 VALIDATION_FAILED, following the project error contract.
   license:
     name: Private project; all rights reserved
     url: https://www.energy.gov.lk/
@@ -86,6 +92,8 @@ paths:
           $ref: '#/components/responses/PreconditionFailed'
         '415':
           $ref: '#/components/responses/UnsupportedMediaType'
+        '429':
+          $ref: '#/components/responses/RateLimited'
         '500':
           $ref: '#/components/responses/InternalError'
       parameters:
@@ -144,6 +152,8 @@ paths:
           $ref: '#/components/responses/PreconditionFailed'
         '415':
           $ref: '#/components/responses/UnsupportedMediaType'
+        '429':
+          $ref: '#/components/responses/RateLimited'
         '500':
           $ref: '#/components/responses/InternalError'
       parameters:
@@ -184,6 +194,8 @@ paths:
           $ref: '#/components/responses/PreconditionFailed'
         '415':
           $ref: '#/components/responses/UnsupportedMediaType'
+        '429':
+          $ref: '#/components/responses/RateLimited'
         '500':
           $ref: '#/components/responses/InternalError'
       parameters:
@@ -231,6 +243,8 @@ paths:
           $ref: '#/components/responses/NotAcceptable'
         '415': &a9
           $ref: '#/components/responses/UnsupportedMediaType'
+        '429':
+          $ref: '#/components/responses/RateLimited'
         '500': &a10
           $ref: '#/components/responses/InternalError'
   /v1/users/me:
@@ -268,6 +282,8 @@ paths:
         '412':
           $ref: '#/components/responses/PreconditionFailed'
         '415': *a9
+        '429':
+          $ref: '#/components/responses/RateLimited'
         '500': *a10
       parameters:
         - $ref: '#/components/parameters/IfMatch'
@@ -283,7 +299,8 @@ paths:
         CURRENT_PASSWORD_INCORRECT; new must differ from current. Policy failures return 400
         VALIDATION_FAILED with details. Hash with bcrypt cost 12. Atomic password update rechecks
         caller revocation under locks; success invalidates target tokens via pwVersion. Conditional
-        GET headers do not suppress a password update. Rate limiting is introduced in I10.
+        GET headers do not suppress a password update. Password PATCH requests share a
+        10-attempt/15-minute per-IP limit.
       parameters: []
       requestBody:
         required: true
@@ -310,6 +327,8 @@ paths:
         '406': &a62
           $ref: '#/components/responses/NotAcceptable'
         '415': *a9
+        '429':
+          $ref: '#/components/responses/RateLimited'
         '500': &a63
           $ref: '#/components/responses/InternalError'
   /v1/provinces:
@@ -371,6 +390,8 @@ paths:
           $ref: '#/components/responses/PreconditionFailed'
         '415': &a21
           $ref: '#/components/responses/UnsupportedMediaType'
+        '429':
+          $ref: '#/components/responses/RateLimited'
         '500': &a22
           $ref: '#/components/responses/InternalError'
   /v1/provinces/{provinceId}:
@@ -418,6 +439,8 @@ paths:
         '412':
           $ref: '#/components/responses/PreconditionFailed'
         '415': *a21
+        '429':
+          $ref: '#/components/responses/RateLimited'
         '500': *a22
   /v1/provinces/{provinceId}/districts:
     get:
@@ -468,6 +491,8 @@ paths:
         '412':
           $ref: '#/components/responses/PreconditionFailed'
         '415': *a21
+        '429':
+          $ref: '#/components/responses/RateLimited'
         '500': *a22
   /v1/districts/{districtId}:
     get:
@@ -511,6 +536,8 @@ paths:
         '412':
           $ref: '#/components/responses/PreconditionFailed'
         '415': *a21
+        '429':
+          $ref: '#/components/responses/RateLimited'
         '500': *a22
   /v1/districts/{districtId}/grid-substations:
     get:
@@ -561,6 +588,8 @@ paths:
         '412':
           $ref: '#/components/responses/PreconditionFailed'
         '415': *a21
+        '429':
+          $ref: '#/components/responses/RateLimited'
         '500': *a22
   /v1/grid-substations/{substationId}:
     get:
@@ -604,6 +633,8 @@ paths:
         '412':
           $ref: '#/components/responses/PreconditionFailed'
         '415': *a21
+        '429':
+          $ref: '#/components/responses/RateLimited'
         '500': *a22
   /v1/grid-substations/{substationId}/installations:
     get:
@@ -658,6 +689,8 @@ paths:
         '412':
           $ref: '#/components/responses/PreconditionFailed'
         '415': *a21
+        '429':
+          $ref: '#/components/responses/RateLimited'
         '500': *a22
   /v1/installations:
     get:
@@ -712,6 +745,8 @@ paths:
         '412':
           $ref: '#/components/responses/PreconditionFailed'
         '415': *a21
+        '429':
+          $ref: '#/components/responses/RateLimited'
         '500': *a22
   /v1/installations/{siteId}:
     get:
@@ -755,6 +790,8 @@ paths:
         '412':
           $ref: '#/components/responses/PreconditionFailed'
         '415': *a21
+        '429':
+          $ref: '#/components/responses/RateLimited'
         '500': *a22
   /v1/installations/{siteId}/readings:
     get:
@@ -823,6 +860,8 @@ paths:
           $ref: '#/components/responses/PreconditionFailed'
         '415': &a42
           $ref: '#/components/responses/UnsupportedMediaType'
+        '429':
+          $ref: '#/components/responses/RateLimited'
         '500': &a34
           $ref: '#/components/responses/InternalError'
     post:
@@ -881,6 +920,8 @@ paths:
         '409':
           $ref: '#/components/responses/DuplicateReading'
         '415': *a9
+        '429':
+          $ref: '#/components/responses/RateLimited'
         '500': *a34
   /v1/installations/{siteId}/readings/{timestamp}:
     get:
@@ -934,6 +975,8 @@ paths:
         '406': *a33
         '412': *a41
         '415': *a42
+        '429':
+          $ref: '#/components/responses/RateLimited'
         '500': *a34
   /v1/readings:
     get:
@@ -985,6 +1028,8 @@ paths:
         '406': *a33
         '412': *a41
         '415': *a42
+        '429':
+          $ref: '#/components/responses/RateLimited'
         '500': *a34
   /v1/installations/{siteId}/last-known-reading:
     get:
@@ -1054,6 +1099,8 @@ paths:
           $ref: '#/components/responses/PreconditionFailed'
         '415': &a55
           $ref: '#/components/responses/UnsupportedMediaType'
+        '429':
+          $ref: '#/components/responses/RateLimited'
         '500': &a56
           $ref: '#/components/responses/InternalError'
   /v1/installations/{siteId}/overview:
@@ -1126,6 +1173,8 @@ paths:
         '406': *a53
         '412': *a54
         '415': *a55
+        '429':
+          $ref: '#/components/responses/RateLimited'
         '500': *a56
   /v1/generation-summary:
     get:
@@ -1189,6 +1238,8 @@ paths:
           $ref: '#/components/responses/PreconditionFailed'
         '415':
           $ref: '#/components/responses/UnsupportedMediaType'
+        '429':
+          $ref: '#/components/responses/RateLimited'
         '500':
           $ref: '#/components/responses/InternalError'
   /v1/provinces/{provinceId}/generation-summary:
@@ -1260,6 +1311,8 @@ paths:
           $ref: '#/components/responses/PreconditionFailed'
         '415':
           $ref: '#/components/responses/UnsupportedMediaType'
+        '429':
+          $ref: '#/components/responses/RateLimited'
         '500':
           $ref: '#/components/responses/InternalError'
   /v1/districts/{districtId}/generation-summary:
@@ -1331,6 +1384,8 @@ paths:
           $ref: '#/components/responses/PreconditionFailed'
         '415':
           $ref: '#/components/responses/UnsupportedMediaType'
+        '429':
+          $ref: '#/components/responses/RateLimited'
         '500':
           $ref: '#/components/responses/InternalError'
   /v1/grid-substations/{substationId}/generation-summary:
@@ -1402,6 +1457,8 @@ paths:
           $ref: '#/components/responses/PreconditionFailed'
         '415':
           $ref: '#/components/responses/UnsupportedMediaType'
+        '429':
+          $ref: '#/components/responses/RateLimited'
         '500':
           $ref: '#/components/responses/InternalError'
   /v1/generation-trend:
@@ -1512,6 +1569,8 @@ paths:
           $ref: '#/components/responses/PreconditionFailed'
         '415':
           $ref: '#/components/responses/UnsupportedMediaType'
+        '429':
+          $ref: '#/components/responses/RateLimited'
         '500':
           $ref: '#/components/responses/InternalError'
   /v1/provinces/{provinceId}/generation-trend:
@@ -1629,6 +1688,8 @@ paths:
           $ref: '#/components/responses/PreconditionFailed'
         '415':
           $ref: '#/components/responses/UnsupportedMediaType'
+        '429':
+          $ref: '#/components/responses/RateLimited'
         '500':
           $ref: '#/components/responses/InternalError'
   /v1/districts/{districtId}/generation-trend:
@@ -1746,6 +1807,8 @@ paths:
           $ref: '#/components/responses/PreconditionFailed'
         '415':
           $ref: '#/components/responses/UnsupportedMediaType'
+        '429':
+          $ref: '#/components/responses/RateLimited'
         '500':
           $ref: '#/components/responses/InternalError'
   /v1/grid-substations/{substationId}/generation-trend:
@@ -1863,6 +1926,8 @@ paths:
           $ref: '#/components/responses/PreconditionFailed'
         '415':
           $ref: '#/components/responses/UnsupportedMediaType'
+        '429':
+          $ref: '#/components/responses/RateLimited'
         '500':
           $ref: '#/components/responses/InternalError'
   /v1/installations/{siteId}/generation-trend:
@@ -1980,6 +2045,8 @@ paths:
           $ref: '#/components/responses/PreconditionFailed'
         '415':
           $ref: '#/components/responses/UnsupportedMediaType'
+        '429':
+          $ref: '#/components/responses/RateLimited'
         '500':
           $ref: '#/components/responses/InternalError'
   /v1/users:
@@ -2030,6 +2097,8 @@ paths:
           $ref: '#/components/responses/PreconditionFailed'
         '415': &a67
           $ref: '#/components/responses/UnsupportedMediaType'
+        '429':
+          $ref: '#/components/responses/RateLimited'
         '500': *a63
   /v1/users/{userId}:
     get:
@@ -2076,6 +2145,8 @@ paths:
         '406': *a62
         '412': *a66
         '415': *a67
+        '429':
+          $ref: '#/components/responses/RateLimited'
         '500': *a63
     patch:
       operationId: resetUserPassword
@@ -2089,7 +2160,8 @@ paths:
         the exact self-change rules and SelfPasswordChange body. Policy failures return 400
         VALIDATION_FAILED with details. Hash with bcrypt cost 12. Atomic password update rechecks
         caller revocation under locks; success invalidates target tokens via pwVersion. Conditional
-        GET headers do not suppress a password update. Rate limiting is introduced in I10.
+        GET headers do not suppress a password update. Password PATCH requests share a
+        10-attempt/15-minute per-IP limit.
       parameters:
         - *a68
       requestBody:
@@ -2112,6 +2184,8 @@ paths:
         '405': *a61
         '406': *a62
         '415': *a9
+        '429':
+          $ref: '#/components/responses/RateLimited'
         '500': *a63
 components:
   securitySchemes:
@@ -2159,6 +2233,19 @@ components:
       schema:
         type: string
       example: private, no-cache
+    RetryAfter:
+      description: Seconds until the current rate-limit window resets.
+      schema:
+        type: integer
+        minimum: 1
+    RateLimit:
+      description: Combined draft-8 rate-limit policy counters.
+      schema:
+        type: string
+    RateLimitPolicy:
+      description: Combined draft-8 rate-limit policy windows.
+      schema:
+        type: string
   schemas:
     Error:
       type: object
@@ -2990,64 +3077,86 @@ components:
       description:
         Malformed JSON, invalid input, or body larger than 10 kb (400 VALIDATION_FAILED for
         size; contract has no 413)
-      headers: &a86
+      headers: &a87
         X-Request-Id:
           $ref: '#/components/headers/RequestId'
-      content: &a87
+      content: &a86
         application/json:
           schema:
             $ref: '#/components/schemas/Error'
     Unauthorized:
       description: Missing, invalid, expired, or revoked bearer token
       headers:
-        <<: *a86
+        X-Request-Id:
+          $ref: '#/components/headers/RequestId'
         WWW-Authenticate:
           schema:
             type: string
           example: Bearer
-      content: *a87
+      content: *a86
     Forbidden:
       description: Principal lacks the required scope or jurisdiction
-      headers: *a86
-      content: *a87
+      headers: *a87
+      content: *a86
     NotFound:
       description: Unknown resource or route
-      headers: *a86
-      content: *a87
+      headers: *a87
+      content: *a86
     MethodNotAllowed:
       description: Method is unsupported on a known URI
       headers:
-        <<: *a86
+        X-Request-Id:
+          $ref: '#/components/headers/RequestId'
         Allow:
           description: Comma-separated supported methods
           schema:
             type: string
           example: GET
-      content: *a87
+      content: *a86
     NotAcceptable:
       description: Accept does not permit the offered representation (JSON, or HTML for /docs)
-      headers: *a86
-      content: *a87
+      headers: *a87
+      content: *a86
     Conflict:
       description: Duplicate reading
-      headers: *a86
-      content: *a87
+      headers: *a87
+      content: *a86
     PreconditionFailed:
       description: The GET If-Match condition fails after authentication and authorization (strong comparison).
-      headers: *a86
-      content: *a87
+      headers: *a87
+      content: *a86
     UnsupportedMediaType:
       description: A write requires application/json, or the JSON charset or encoding is unsupported
-      headers: *a86
-      content: *a87
+      headers: *a87
+      content: *a86
     RateLimited:
-      description: Too many requests
-      headers: *a86
-      content: *a87
+      description:
+        'Request limit exceeded: 429 RATE_LIMITED. Counters are per process/IP; serverless
+        enforcement is best effort.'
+      headers:
+        Retry-After:
+          $ref: '#/components/headers/RetryAfter'
+        RateLimit:
+          $ref: '#/components/headers/RateLimit'
+        RateLimit-Policy:
+          $ref: '#/components/headers/RateLimitPolicy'
+        X-Request-Id:
+          $ref: '#/components/headers/RequestId'
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+          example:
+            error:
+              code: RATE_LIMITED
+              message: Too many requests. Retry after the indicated delay.
+              status: 429
+              details: []
+              request_id: 12345678-1234-4123-8123-123456789abc
     InternalError:
       description: Unhandled server fault; generic message without implementation details
-      headers: *a86
-      content: *a87
+      headers: *a87
+      content: *a86
     NotModified:
       description: Current representation; empty response body. Access checks run before ETag comparison.
       headers:

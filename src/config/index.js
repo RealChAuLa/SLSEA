@@ -17,6 +17,10 @@ const envSchema = z.object({
     .enum(['development', 'test', 'production'])
     .default('development'),
   PORT: z.coerce.number().int().min(1).max(65535).default(3000),
+  RATE_LIMIT_ENABLED: z
+    .enum(['true', 'false'])
+    .default('true')
+    .transform((value) => value === 'true'),
   CORS_ORIGINS: z
     .string()
     .default('')
@@ -43,6 +47,7 @@ export function loadConfig(env = process.env) {
   return Object.freeze({
     nodeEnv: parsed.data.NODE_ENV,
     port: parsed.data.PORT,
+    rateLimitEnabled: parsed.data.RATE_LIMIT_ENABLED,
     corsOrigins: Object.freeze(parsed.data.CORS_ORIGINS),
   });
 }

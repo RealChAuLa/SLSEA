@@ -1,0 +1,16 @@
+.env
+.env.*
+seed-output/
+tests/
+docs/
+.review-tools/
+.github/
+.idea/
+coverage/
+prisma/seed.js
+prisma/seed-tokens.js
+prisma/seed-extend.js
+prisma/seed-lib/
+requests.http
+project.md
+implementation_plan.md

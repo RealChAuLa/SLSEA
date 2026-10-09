@@ -13,7 +13,10 @@ import { createLogger } from '../../src/utils/logger.js';
 import { expectApiError } from '../helpers/expect-api-error.js';
 
 const logger = { info: jest.fn(), error: jest.fn() };
-const testApp = createApp({ config: loadConfig({ NODE_ENV: 'test' }), logger });
+const testApp = createApp({
+  config: loadConfig({ NODE_ENV: 'test', RATE_LIMIT_ENABLED: 'false' }),
+  logger,
+});
 const publicPaths = ['/health', '/docs', '/openapi.json'];
 
 test('health is public and has the required JSON and security headers', async () => {
@@ -165,7 +168,10 @@ test('request IDs are fresh UUIDs and untrusted supplied values are never echoed
 
 test('CORS allows only configured origins and exposes useful response headers', async () => {
   const corsApp = createApp({
-    config: loadConfig({ CORS_ORIGINS: 'https://portal.example.com' }),
+    config: loadConfig({
+      CORS_ORIGINS: 'https://portal.example.com',
+      RATE_LIMIT_ENABLED: 'false',
+    }),
     logger,
   });
   const allowed = await request(corsApp)
@@ -176,6 +182,9 @@ test('CORS allows only configured origins and exposes useful response headers', 
   );
   expect(allowed.headers['access-control-expose-headers']).toContain(
     'X-Request-Id',
+  );
+  expect(allowed.headers['access-control-expose-headers']).toContain(
+    'Retry-After',
   );
   const denied = await request(corsApp)
     .get('/health')
