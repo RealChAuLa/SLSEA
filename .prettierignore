@@ -1,0 +1,9 @@
+node_modules/
+coverage/
+.vercel/
+seed-output/
+package-lock.json
+openapi.json
+# Preserve the source documents supplied by the owner.
+project.md
+implementation_plan.md

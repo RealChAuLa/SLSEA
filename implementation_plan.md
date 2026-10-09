@@ -87,21 +87,23 @@ flowchart TD
 **Builds on:** nothing. **Refs:** §4.1–4.3, §4.7, §7, §8, §10.
 
 **Tasks**
-- [ ] Initialise the repo, `package.json` (scripts per §7.5; stubs allowed for later scripts), ESLint, Prettier, `.gitignore` (`.env`, `seed-output/`, `node_modules`), `.env.example`, Jest + Supertest config.
-- [ ] Create the folder skeleton from §7.3 (empty folders get a `.gitkeep`).
-- [ ] `src/config/`: Zod-validated env loader (only the variables needed so far; add more as increments need them).
-- [ ] `src/app.js` (builds and exports the app, no `listen`), `src/server.js` (local listen only), `api/index.js` and `vercel.json` (per current Vercel Express docs).
-- [ ] Middleware: request id (`X-Request-Id`, UUID), `helmet`, `cors` (from `CORS_ORIGINS`), `trust proxy`, JSON body parser (10 kb limit, only `application/json`; malformed JSON → `400 MALFORMED_JSON`), content negotiation (`406 NOT_ACCEPTABLE` for unacceptable `Accept`; `415 UNSUPPORTED_MEDIA_TYPE` for `POST`/`PATCH` without JSON `Content-Type`). Public docs/health routes are exempt from `415`.
-- [ ] Errors: `ApiError`, the single error handler (maps `ApiError`, Zod errors → `VALIDATION_FAILED` with `details`, body-parser errors, unknown errors → `500 INTERNAL_ERROR` with a generic message, real error logged server-side), unknown route → `404 NOT_FOUND`.
-- [ ] A reusable `methodNotAllowed(allowedMethods)` helper that returns `405` + `Allow`; every router registers it for unsupported methods on its paths.
-- [ ] `GET /health` (public, unversioned): `{ "status": "ok" }`.
-- [ ] Docs: `openapi.yaml` skeleton (info, servers, `bearerAuth`, `Error`/`Pagination`/`Links` schemas, parameter and response components, `/health`); `spec:build` converts it to `openapi.json` (run in `build`); `GET /openapi.json`; `GET /docs` serves a minimal HTML page loading `swagger-ui-dist` from a CDN and pointing at `/openapi.json` (§8).
-- [ ] `.github/workflows/ci.yml`: install, lint, `spec:lint`, test (add a PostgreSQL service container now so later increments need no CI change).
-- [ ] `README.md` skeleton (project summary, scripts, env vars, placeholder for the owner checklist).
-- [ ] `docs/ai-disclosure.md` created with the template from §11.
+- [x] Initialise the repo, `package.json` (scripts per §7.5; stubs allowed for later scripts), ESLint, Prettier, `.gitignore` (`.env`, `seed-output/`, `node_modules`), `.env.example`, Jest + Supertest config.
+- [x] Create the folder skeleton from §7.3 (empty folders get a `.gitkeep`).
+- [x] `src/config/`: Zod-validated env loader (only the variables needed so far; add more as increments need them).
+- [x] `src/app.js` (builds and exports the app, no `listen`), `src/server.js` (local listen only), `api/index.js` and `vercel.json` (per current Vercel Express docs).
+- [x] Middleware: request id (`X-Request-Id`, UUID), `helmet`, `cors` (from `CORS_ORIGINS`), `trust proxy`, JSON body parser (10 kb limit, only `application/json`; malformed JSON → `400 MALFORMED_JSON`), content negotiation (`406 NOT_ACCEPTABLE` for unacceptable `Accept`; `415 UNSUPPORTED_MEDIA_TYPE` for `POST`/`PATCH` without JSON `Content-Type`). Public docs/health routes are exempt from `415`.
+- [x] Errors: `ApiError`, the single error handler (maps `ApiError`, Zod errors → `VALIDATION_FAILED` with `details`, body-parser errors, unknown errors → `500 INTERNAL_ERROR` with a generic message, real error logged server-side), unknown route → `404 NOT_FOUND`.
+- [x] A reusable `methodNotAllowed(allowedMethods)` helper that returns `405` + `Allow`; every router registers it for unsupported methods on its paths.
+- [x] `GET /health` (public, unversioned): `{ "status": "ok" }`.
+- [x] Docs: `openapi.yaml` skeleton (info, servers, `bearerAuth`, `Error`/`Pagination`/`Links` schemas, parameter and response components, `/health`); `spec:build` converts it to `openapi.json` (run in `build`); `GET /openapi.json`; `GET /docs` serves a minimal HTML page loading `swagger-ui-dist` from a CDN and pointing at `/openapi.json` (§8).
+- [x] `.github/workflows/ci.yml`: install, lint, `spec:lint`, test (add a PostgreSQL service container now so later increments need no CI change).
+- [x] `README.md` skeleton (project summary, scripts, env vars, placeholder for the owner checklist).
+- [x] `docs/ai-disclosure.md` created with the template from §11.
 
 **Tests**
 - `/health` 200; unknown route → 404 uniform body; `PUT /health` → 405 with `Allow: GET`; `Accept: text/html` → 406; `POST` with `text/plain` → 415; malformed JSON → `MALFORMED_JSON`; a shared helper `expectApiError(res, status, code)` used by every later test; importing `api/index.js` does not start a server.
+
+**Status (2026-10-09):** I0 implemented and verified locally (build, lint, OpenAPI lint, 40 tests, and live HTTP smoke checks). Remote GitHub CI remains pending an owner push. Commit/tag were not created because Git write approval was declined. Stop here; I1 requires the owner's explicit instruction.
 
 **Exit criteria:** app runs locally; `/health` and `/docs` work; errors are uniform; CI green. **Tag:** `i0-foundations`.
 

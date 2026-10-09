@@ -1,1 +1,9 @@
-.idea
+.idea/
+node_modules/
+.env
+.env.*
+!.env.example
+seed-output/
+coverage/
+.vercel/
+*.log

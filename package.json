@@ -1,0 +1,52 @@
+{
+  "name": "slsea-solar-api",
+  "version": "0.0.0",
+  "private": true,
+  "description": "SLSEA real-time solar generation data API",
+  "type": "module",
+  "engines": {
+    "node": "24.x"
+  },
+  "scripts": {
+    "start": "node src/server.js",
+    "dev": "node --watch src/server.js",
+    "build": "node scripts/build-spec.js",
+    "spec:build": "node scripts/build-spec.js",
+    "spec:lint": "node scripts/build-spec.js && redocly lint openapi.yaml openapi.json",
+    "pretest": "node scripts/build-spec.js",
+    "test": "node --experimental-vm-modules node_modules/jest/bin/jest.js --runInBand",
+    "lint": "eslint . && prettier --check .",
+    "format": "prettier --write .",
+    "db:migrate": "node scripts/not-implemented.js db:migrate I1",
+    "seed": "node scripts/not-implemented.js seed I1",
+    "seed:tokens": "node scripts/not-implemented.js seed:tokens I1",
+    "seed:extend": "node scripts/not-implemented.js seed:extend I7",
+    "simulate": "node scripts/not-implemented.js simulate I6"
+  },
+  "jest": {
+    "testEnvironment": "node",
+    "transform": {},
+    "testMatch": [
+      "<rootDir>/tests/**/*.test.js"
+    ],
+    "clearMocks": true,
+    "restoreMocks": true
+  },
+  "dependencies": {
+    "cors": "2.8.6",
+    "dotenv": "18.0.6",
+    "express": "5.2.1",
+    "helmet": "8.3.0",
+    "yaml": "2.9.1",
+    "zod": "4.6.5"
+  },
+  "devDependencies": {
+    "@eslint/js": "10.0.1",
+    "@redocly/cli": "2.62.0",
+    "eslint": "10.12.0",
+    "globals": "17.13.0",
+    "jest": "30.5.2",
+    "prettier": "3.9.9",
+    "supertest": "7.3.1"
+  }
+}

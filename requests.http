@@ -1,0 +1,36 @@
+@baseUrl = http://localhost:3000
+
+### Public health
+GET {{baseUrl}}/health
+Accept: application/json
+
+### OpenAPI JSON
+GET {{baseUrl}}/openapi.json
+Accept: application/json
+
+### Swagger UI
+GET {{baseUrl}}/docs
+Accept: text/html
+
+### Uniform 404
+GET {{baseUrl}}/unknown
+Accept: application/json
+
+### Unsupported method (405; Allow: GET)
+PUT {{baseUrl}}/health
+
+### Unacceptable representation (406)
+GET {{baseUrl}}/health
+Accept: text/html
+
+### Unsupported write Content-Type (415)
+POST {{baseUrl}}/v1/unimplemented
+Content-Type: text/plain
+
+example
+
+### Malformed JSON (400)
+POST {{baseUrl}}/v1/unimplemented
+Content-Type: application/json
+
+{"invalid":

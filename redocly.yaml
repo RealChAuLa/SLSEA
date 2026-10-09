@@ -1,0 +1,5 @@
+extends:
+  - recommended
+rules:
+  # Foundations intentionally includes reusable components for future increments.
+  no-unused-components: off
