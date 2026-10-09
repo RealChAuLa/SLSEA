@@ -129,6 +129,7 @@ export async function simulateReadings({
       count: due,
       startEnergy: latest?.cumulative_energy_Kwh,
       seedRandom,
+      alignEnd: false,
     });
     for (const row of series) {
       const response = await fetchImpl(

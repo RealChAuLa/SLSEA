@@ -9,6 +9,17 @@ export function requireRead(principal, chain) {
     );
 }
 
+export function requireRegionalRead(principal, chain, type) {
+  // District access to parent province metadata does not include its aggregates.
+  if (type === 'province' && principal.jurisdiction_type === 'district')
+    throw new ApiError(
+      'FORBIDDEN_JURISDICTION',
+      403,
+      'The requested region is outside your jurisdiction.',
+    );
+  requireRead(principal, chain);
+}
+
 export function canRead(principal, chain) {
   if (
     principal?.kind !== 'user' ||

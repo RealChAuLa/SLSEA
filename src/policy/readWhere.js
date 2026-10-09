@@ -1,6 +1,24 @@
 import { Prisma } from '../generated/prisma/client.js';
 import { scopeFilter } from './scopeFilter.js';
 
+export function regionPredicate(scope) {
+  if (scope.type === 'national') return Prisma.sql`TRUE`;
+  if (!Number.isInteger(scope.id) || scope.id < 1)
+    throw new Error('Invalid regional scope.');
+  switch (scope.type) {
+    case 'province':
+      return Prisma.sql`d.province_id = ${scope.id}::int`;
+    case 'district':
+      return Prisma.sql`d.district_id = ${scope.id}::int`;
+    case 'substation':
+      return Prisma.sql`g.substation_id = ${scope.id}::int`;
+    case 'installation':
+      return Prisma.sql`i.site_id = ${scope.id}::int`;
+    default:
+      throw new Error('Invalid regional scope.');
+  }
+}
+
 export function jurisdictionWhere(principal, resource) {
   const scope = scopeFilter(principal);
   if (scope.type === 'national') return {};

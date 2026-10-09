@@ -6,6 +6,31 @@ import {
   floorQuarterHour,
 } from '../../prisma/seed-lib/generator.js';
 
+test('unaligned continuation retains exact timestamps and splits deterministically', () => {
+  const end = new Date('2026-10-09T12:47:03.123Z');
+  const whole = generateSeries({
+    site_id: 7,
+    endTimestamp: end,
+    count: 4,
+    alignEnd: false,
+  });
+  const first = generateSeries({
+    site_id: 7,
+    endTimestamp: new Date(end.getTime() - 2 * 900000),
+    count: 2,
+    alignEnd: false,
+  });
+  const second = generateSeries({
+    site_id: 7,
+    endTimestamp: end,
+    count: 2,
+    alignEnd: false,
+    startEnergy: first.at(-1).cumulative_energy_Kwh,
+  });
+  expect(whole.at(-1).timestamp).toEqual(end);
+  expect([...first, ...second]).toEqual(whole);
+});
+
 test('solar generation is deterministic, bounded, overnight-zero and cumulative-monotonic', () => {
   const end = new Date('2026-10-09T18:30:00.000Z');
   const rows = generateSeries({ site_id: 1, endTimestamp: end, count: 192 });

@@ -6,13 +6,14 @@ principals for devices and staff, and Vercel hosting. [project.md](project.md)
 defines the contract; [implementation_plan.md](implementation_plan.md) defines
 the increments.
 
-**Current increment: I6 Device ingestion, verified; I7 is authorized next.**
+**Current increment: I7 Regional summaries and data freshness, verified.**
 I2 authentication/policy (58a0bc0) and I3 hierarchy reads (1874853) are complete.
 I4 adds the three history GETs, deterministic seven-day reading seed and
 Last-Modified/If-Modified-Since. I5 adds last-known readings, installation
-overviews, reporting filters and latest-reading list includes. All 149 tests
-passed across 20 suites; build, lint and OpenAPI validation passed. The full supplied Neon database holds 240
-installations and 160,584 readings, with 240 verified device credentials.
+overviews, reporting filters and latest-reading list includes. I6 adds device ingestion and the HTTP simulator;
+I7 adds regional summaries and history extension. All 160 tests
+passed across 22 suites; build, lint and OpenAPI validation passed. The full supplied Neon database holds 240
+installations and 160,822 readings, with 240 verified device credentials.
 No Docker/local database was used. I8 has not started.
 
 Log in with any seeded email listed in Swagger and the demo password
@@ -85,7 +86,7 @@ settings.
 | `db:migrate`  | Owner-run Prisma migrate deploy using DIRECT_URL               |
 | `seed`        | Replace reference data/history and generate device tokens      |
 | `seed:tokens` | Regenerate device tokens without modifying database rows       |
-| `seed:extend` | Explicit I7 placeholder                                        |
+| `seed:extend` | Append deterministic history, excluding offline/empty fixtures |
 | `simulate`    | Post generated readings over HTTP using private device tokens  |
 
 Application, scripts, tests, and Prisma config use plain JavaScript ESM
@@ -225,7 +226,7 @@ npm run spec:lint
 npm test
 ```
 
-I1 through I5 have been verified locally against the supplied Neon database.
+I1 through I7 have been verified locally against the supplied Neon database.
 
 Tests cover the public endpoints, uniform errors, security headers, negotiation,
 method guards, JSON/body limits, CORS, configuration, safe logging, clock control,
@@ -301,7 +302,7 @@ for example ?from=2026-10-09T00:00:00%2B05:30.
 Last-Modified is the newest timestamp on the selected page and is absent on empty
 pages. If-Modified-Since uses HTTP dates, follows If-Match, and is ignored when
 If-None-Match is supplied. Authentication and jurisdiction are always checked
-first. Device POST ingestion is available; seed:extend follows in I7.
+first. Device POST ingestion is available; seed:extend is available below.
 
 ## Operational reads (I5)
 
@@ -329,7 +330,7 @@ token with `generation:read` and enforce jurisdiction before conditional respons
 
 The restored full seed has 238 reporting installations, stale fixture 239 and
 empty fixture 240. Seeded freshness ages naturally until data is extended;
-`seed:extend` is implemented in I7. I8 has not started.
+`seed:extend` is available below. I8 has not started.
 
 ## Device ingestion and simulation (I6)
 
@@ -359,3 +360,49 @@ generator and posts over HTTP. It sends at most the requested number of due
 quarter-hour readings, respecting the future-time limit. Current sites are
 reported as up_to_date; empty sites start at the current quarter-hour boundary.
 It prints site/status/Location and totals, never tokens or response diagnostics.
+
+## Regional summaries and history extension (I7)
+
+GET /v1/generation-summary resolves the verified user's own jurisdiction: national
+whole country, provincial own province, district own district. Addressed summary
+routes are /v1/provinces/{provinceId}/generation-summary,
+/v1/districts/{districtId}/generation-summary and
+/v1/grid-substations/{substationId}/generation-summary. Every route requires a
+user token with generation:read and rejects unknown query parameters. District
+parent-province navigation grants metadata access only; province summaries remain
+forbidden to district users.
+
+Each response includes scope, as_of, timezone, installations_total,
+installations_reporting, installations_not_reporting, total_power_Kw and
+energy_today_Kwh. A single SQL snapshot uses latest readings within the preceding
+48 hours and at or before as_of. Reporting includes the exact freshness boundary;
+power sums only reporting sites. Energy includes stale sites with readings today
+and uses the last counter before Asia/Colombo midnight, falling back to the first
+reading today. Baselines have no age cutoff; negative differences clamp to zero.
+Existing regions without installations return zeros. Last-Modified is as_of;
+ETag and HTTP-date conditions run after authorization. as_of is recomputed on
+each request, so a later snapshot can have a new ETag even when measurements match.
+
+Before a demo, refresh normal installations without replacing existing history:
+
+```sh
+npm run seed:extend
+```
+
+Extension uses DIRECT_URL, the shared generator and each stored latest counter,
+appending through the latest quarter-hour boundary. Batches contain at most 5,000
+rows. Installation locks serialize extension with ingestion and other extension
+runs. Repeating the same target time adds zero rows. Offline site 239 and empty
+site 240 are excluded; compact fixtures use --scale test. A normal site without
+history receives one reading at the target boundary. Off-boundary device readings
+continue exactly 15 minutes after the stored timestamp, preserving the counter. No
+existing reading is modified or deleted. The command prints rowsAdded and end.
+
+I6/I7 verification passed 160 tests across 22 suites, including real HTTP device
+simulation, retries, hand-computed summary energy, jurisdiction leakage, zero
+regions, overview consistency, one-query aggregation and concurrent/idempotent
+extension. Full supplied Neon data and credentials were restored and verified.
+I8 has not started; no push or remote CI success is claimed.
+
+The full-scale owner extension smoke appended 238 due readings; its repeat added
+zero. The final database holds 160,822 readings and all 240 credentials verify.

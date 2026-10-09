@@ -295,12 +295,14 @@ flowchart TD
 
 ## I7: Regional summaries & data freshness
 
+**Status (2026-10-09):** Implemented and verified: 160 tests/22 suites, build/lint/spec checks and full-scale Neon acceptance passed. Summary aggregation is one SQL query and all regional/root scopes enforce jurisdiction. Baselines follow project.md without the sample plan cutoff. Extension is deterministic, concurrent-safe and idempotent; fixtures remain untouched. Full reference/history seed and 240 tokens restored/verified. Owner extension appended 238 due rows; repeat added zero. Final reading count: 160,822. I6 commit: b22102b (i6-device-ingestion); I7 completion tag: i7-summaries-freshness. No push or remote CI success is claimed. I8 has not started.
+
 **Goal:** the operational processing resource at every region level, and a way to keep seeded data fresh.
 **Builds on:** I6. **Refs:** §3.5, §5.3, §6.6.
 
 **Tasks**
-- [ ] `src/services/regions.js`: `resolveRegion(principal, params)` → `{ type, id, name }` (root form resolves from the principal: national → `{type:'national', id:null, name:'Sri Lanka'}`; provincial → their province; district → their district); `canRead` check for regional forms (`403`/`404`); `regionPredicate(scope)` returning a `Prisma.sql` fragment over the aliases `i` (installations), `g` (substations), `d` (districts): `TRUE` | `d.province_id = …` | `d.district_id = …` | `g.substation_id = …` | `i.site_id = …` (installation scope, used by trends in I8).
-- [ ] `regionalSnapshot(scope, now)`: one parameterised `$queryRaw`. Outline (adapt and add explicit casts such as `::timestamptz`/`::int` for parameters):
+- [x] `src/services/regions.js`: `resolveRegion(principal, params)` → `{ type, id, name }` (root form resolves from the principal: national → `{type:'national', id:null, name:'Sri Lanka'}`; provincial → their province; district → their district); `canRead` check for regional forms (`403`/`404`); `regionPredicate(scope)` returning a `Prisma.sql` fragment over the aliases `i` (installations), `g` (substations), `d` (districts): `TRUE` | `d.province_id = …` | `d.district_id = …` | `g.substation_id = …` | `i.site_id = …` (installation scope, used by trends in I8).
+- [x] `regionalSnapshot(scope, now)`: one parameterised `$queryRaw`. Outline (adapt and add explicit casts such as `::timestamptz`/`::int` for parameters):
 
 ```sql
 WITH meters AS (
@@ -339,9 +341,9 @@ LEFT JOIN first_today f ON f.meter_id = l.meter_id;
 ```
 
   Convert `bigint`/`numeric` to numbers; `not_reporting = total − reporting`; a region with no installations returns zeros.
-- [ ] Endpoints (`GET`, scope `generation:read`): `/generation-summary`, `/provinces/{id}/generation-summary`, `/districts/{id}/generation-summary`, `/grid-substations/{id}/generation-summary`; response shape per §3.5 (`scope`, `as_of`, `timezone`, counts, `total_power_Kw`, `energy_today_Kwh`); ETag/304, `Last-Modified = as_of`.
+- [x] Endpoints (`GET`, scope `generation:read`): `/generation-summary`, `/provinces/{id}/generation-summary`, `/districts/{id}/generation-summary`, `/grid-substations/{id}/generation-summary`; response shape per §3.5 (`scope`, `as_of`, `timezone`, counts, `total_power_Kw`, `energy_today_Kwh`); ETag/304, `Last-Modified = as_of`.
 - [ ] Optional refactor: make `overview.today.energy_Kwh` reuse the installation-scope snapshot (the consistency test below guards it).
-- [ ] `prisma/seed-extend.js` + `npm run seed:extend` (§6.6): for each non-fixture site, append readings from latest timestamp + 15 min up to the latest 15-minute boundary ≤ now, continuing the cumulative counter from the stored value, same generator; batches ≤ 5,000; idempotent; prints rows added per run.
+- [x] `prisma/seed-extend.js` + `npm run seed:extend` (§6.6): for each non-fixture site, append readings from latest timestamp + 15 min up to the latest 15-minute boundary ≤ now, continuing the cumulative counter from the stored value, same generator; batches ≤ 5,000; idempotent; prints rows added per run.
 
 **OpenAPI:** four summary endpoints with the shared `scope` schema.
 

@@ -38,6 +38,7 @@ export function generateSeries({
   startEnergy: initial,
   meter_id = `MTR-${String(site_id).padStart(4, '0')}`,
   seedRandom = DEFAULT_SEED,
+  alignEnd = true,
 }) {
   if (
     !Number.isInteger(site_id) ||
@@ -47,10 +48,14 @@ export function generateSeries({
     count > 100000 ||
     !Number.isInteger(seedRandom) ||
     seedRandom < 0 ||
-    seedRandom > 4294967295
+    seedRandom > 4294967295 ||
+    typeof alignEnd !== 'boolean'
   )
     throw new Error('Invalid generation parameters.');
-  const end = floorQuarterHour(endTimestamp).getTime();
+  const end = alignEnd
+    ? floorQuarterHour(endTimestamp).getTime()
+    : new Date(endTimestamp).getTime();
+  if (!Number.isFinite(end)) throw new Error('Invalid generation timestamp.');
   let energy = initial ?? startEnergy(site_id, seedRandom);
   if (!Number.isFinite(energy) || energy < 0)
     throw new Error('Invalid starting energy.');
@@ -69,7 +74,7 @@ export function generateSeries({
     );
     const power_Kw = round(
       capacity *
-        solarCurve(slot / 4) *
+        solarCurve((local - day * DAY) / 3600000) *
         clouds.get(day)[slot] *
         (0.95 + 0.1 * random()),
     );

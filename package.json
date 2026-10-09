@@ -22,7 +22,7 @@
     "db:migrate": "node scripts/migrate.js",
     "seed": "node prisma/seed.js",
     "seed:tokens": "node prisma/seed-tokens.js",
-    "seed:extend": "node scripts/not-implemented.js seed:extend I7",
+    "seed:extend": "node prisma/seed-extend.js",
     "simulate": "node scripts/simulate.js"
   },
   "jest": {

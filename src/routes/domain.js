@@ -15,6 +15,7 @@ import { sendConditional } from '../utils/conditional.js';
 import { paginationLinkHeader } from '../utils/pagination.js';
 import { registerReadingRoutes } from './readings.js';
 import { registerOperationalRoutes } from './operational.js';
+import { registerRegionRoutes } from './regions.js';
 
 function emptyDomainQuery(req, _res, next) {
   if (Object.keys(req.query).length) {
@@ -104,4 +105,5 @@ export function registerDomainRoutes(
   const writes = [auth, requireDeviceToken, requireScope('readings:write')];
   registerReadingRoutes(app, { getDb, reads, writes, clock });
   registerOperationalRoutes(app, { getDb, reads, clock });
+  registerRegionRoutes(app, { getDb, reads, clock });
 }
