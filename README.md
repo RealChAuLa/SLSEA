@@ -294,6 +294,5 @@ History intervals/monotonic counters and both history indexes were rechecked.
 Remote GitHub CI has been verified for I10. The workflow is ready; the
 owner is configured its private repository secrets.
 
-
 See [docs/ai-disclosure.md](docs/ai-disclosure.md) for prompts, assumptions,
 repairs and references.
