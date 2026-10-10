@@ -1,0 +1,776 @@
+{
+  "info": {
+    "name": "SLSEA - all 33 API operations",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+    "description": "All documented operations. Uses the public API and placeholders for private tokens. Run reads first; device POST and password PATCH change real demo data. Login and latest-reading requests populate collection variables."
+  },
+  "variable": [
+    {
+      "key": "baseUrl",
+      "value": "https://slsea.vercel.app",
+      "type": "string"
+    },
+    {
+      "key": "email",
+      "value": "national.operator@slsea.lk",
+      "type": "string"
+    },
+    {
+      "key": "password",
+      "value": "Solar#Demo2026",
+      "type": "string"
+    },
+    {
+      "key": "userToken",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "deviceToken",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "from",
+      "value": "2026-10-08T18:30:00Z",
+      "type": "string"
+    },
+    {
+      "key": "to",
+      "value": "2026-10-09T18:30:00Z",
+      "type": "string"
+    },
+    {
+      "key": "existingReadingTimestamp",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "newReadingTimestamp",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "nextCounter",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "newPassword",
+      "value": "Brighter#Sun2027",
+      "type": "string"
+    }
+  ],
+  "item": [
+    {
+      "name": "Public",
+      "item": [
+        {
+          "name": "GET /health - Health",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/health",
+            "description": "Expected 200. "
+          }
+        },
+        {
+          "name": "GET /docs - Swagger UI",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "text/html"
+              }
+            ],
+            "url": "{{baseUrl}}/docs",
+            "description": "Expected 200. "
+          }
+        },
+        {
+          "name": "GET /openapi.json - OpenAPI specification",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/openapi.json",
+            "description": "Expected 200. "
+          }
+        }
+      ]
+    },
+    {
+      "name": "Login",
+      "item": [
+        {
+          "name": "POST /v1/auth/tokens - Login",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/v1/auth/tokens",
+            "description": "Expected 200. ",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"{{email}}\",\n  \"password\": \"{{password}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if (pm.response.code === 200) {",
+                  "  pm.collectionVariables.set(\"userToken\", pm.response.json().access_token);",
+                  "}"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Users",
+      "item": [
+        {
+          "name": "GET /v1/users/me - Own profile",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{userToken}}"
+              }
+            ],
+            "url": "{{baseUrl}}/v1/users/me",
+            "description": "Expected 200. Use the National Operator login for these IDs."
+          }
+        },
+        {
+          "name": "GET /v1/users - Users you may manage",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{userToken}}"
+              }
+            ],
+            "url": "{{baseUrl}}/v1/users?page=1&page_size=50&sort=name",
+            "description": "Expected 200. Use the National Operator login for these IDs."
+          }
+        },
+        {
+          "name": "GET /v1/users/3 - Profile of user 3",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{userToken}}"
+              }
+            ],
+            "url": "{{baseUrl}}/v1/users/3",
+            "description": "Expected 200. Use the National Operator login for these IDs."
+          }
+        }
+      ]
+    },
+    {
+      "name": "Hierarchy",
+      "item": [
+        {
+          "name": "GET /v1/provinces - Provinces",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{userToken}}"
+              }
+            ],
+            "url": "{{baseUrl}}/v1/provinces?page=1&page_size=50&sort=name",
+            "description": "Expected 200. Use the National Operator login for these IDs."
+          }
+        },
+        {
+          "name": "GET /v1/provinces/1 - Province 1",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{userToken}}"
+              }
+            ],
+            "url": "{{baseUrl}}/v1/provinces/1",
+            "description": "Expected 200. Use the National Operator login for these IDs."
+          }
+        },
+        {
+          "name": "GET /v1/provinces/1/districts - Districts in province 1",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{userToken}}"
+              }
+            ],
+            "url": "{{baseUrl}}/v1/provinces/1/districts?page=1&page_size=50&sort=name",
+            "description": "Expected 200. Use the National Operator login for these IDs."
+          }
+        },
+        {
+          "name": "GET /v1/districts/1 - District 1",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{userToken}}"
+              }
+            ],
+            "url": "{{baseUrl}}/v1/districts/1",
+            "description": "Expected 200. Use the National Operator login for these IDs."
+          }
+        },
+        {
+          "name": "GET /v1/districts/1/grid-substations - Substations in district 1",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{userToken}}"
+              }
+            ],
+            "url": "{{baseUrl}}/v1/districts/1/grid-substations?page=1&page_size=50&sort=name",
+            "description": "Expected 200. Use the National Operator login for these IDs."
+          }
+        },
+        {
+          "name": "GET /v1/grid-substations/1 - Substation 1",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{userToken}}"
+              }
+            ],
+            "url": "{{baseUrl}}/v1/grid-substations/1",
+            "description": "Expected 200. Use the National Operator login for these IDs."
+          }
+        },
+        {
+          "name": "GET /v1/grid-substations/1/installations - Installations in substation 1",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{userToken}}"
+              }
+            ],
+            "url": "{{baseUrl}}/v1/grid-substations/1/installations?page=1&page_size=50&sort=name&include=last_known_reading",
+            "description": "Expected 200. Use the National Operator login for these IDs."
+          }
+        }
+      ]
+    },
+    {
+      "name": "Installations",
+      "item": [
+        {
+          "name": "GET /v1/installations - Installations",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{userToken}}"
+              }
+            ],
+            "url": "{{baseUrl}}/v1/installations?province_id=1&district_id=1&substation_id=1&page=1&page_size=50&sort=name&include=last_known_reading",
+            "description": "Expected 200. Use the National Operator login for these IDs."
+          }
+        },
+        {
+          "name": "GET /v1/installations/1 - Installation 1",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{userToken}}"
+              }
+            ],
+            "url": "{{baseUrl}}/v1/installations/1",
+            "description": "Expected 200. Use the National Operator login for these IDs."
+          }
+        },
+        {
+          "name": "GET /v1/installations/1/last-known-reading - Latest reading for installation 1",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{userToken}}"
+              }
+            ],
+            "url": "{{baseUrl}}/v1/installations/1/last-known-reading",
+            "description": "Expected 200. Use the National Operator login for these IDs."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if (pm.response.code === 200) {",
+                  "  const reading = pm.response.json();",
+                  "  pm.collectionVariables.set(\"existingReadingTimestamp\", reading.timestamp);",
+                  "  const nextMs = Math.max(Date.now(), Date.parse(reading.timestamp) + 1000);",
+                  "  pm.collectionVariables.set(\"newReadingTimestamp\", new Date(nextMs).toISOString());",
+                  "  pm.collectionVariables.set(\"nextCounter\", Number((reading.cumulative_energy_Kwh + 0.01).toFixed(3)));",
+                  "}"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "GET /v1/installations/1/overview - Overview of installation 1",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{userToken}}"
+              }
+            ],
+            "url": "{{baseUrl}}/v1/installations/1/overview",
+            "description": "Expected 200. Use the National Operator login for these IDs."
+          }
+        }
+      ]
+    },
+    {
+      "name": "History",
+      "item": [
+        {
+          "name": "GET /v1/installations/1/readings - History for installation 1",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{userToken}}"
+              }
+            ],
+            "url": "{{baseUrl}}/v1/installations/1/readings?page=1&page_size=50&sort=-timestamp",
+            "description": "Expected 200. Use the National Operator login for these IDs."
+          }
+        },
+        {
+          "name": "GET /v1/installations/1/readings/{{existingReadingTimestamp}} - One existing reading",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{userToken}}"
+              }
+            ],
+            "url": "{{baseUrl}}/v1/installations/1/readings/{{existingReadingTimestamp}}",
+            "description": "Expected 200. Use the National Operator login for these IDs."
+          }
+        },
+        {
+          "name": "GET /v1/readings - History across installations",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{userToken}}"
+              }
+            ],
+            "url": "{{baseUrl}}/v1/readings?from={{from}}&to={{to}}&province_id=1&district_id=1&substation_id=1&site_id=1&page=1&page_size=50&sort=-timestamp",
+            "description": "Expected 200. Use the National Operator login for these IDs."
+          }
+        }
+      ]
+    },
+    {
+      "name": "Summaries",
+      "item": [
+        {
+          "name": "GET /v1/generation-summary - Summary for the caller jurisdiction",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{userToken}}"
+              }
+            ],
+            "url": "{{baseUrl}}/v1/generation-summary",
+            "description": "Expected 200. Use the National Operator login for these IDs."
+          }
+        },
+        {
+          "name": "GET /v1/provinces/1/generation-summary - Summary for province 1",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{userToken}}"
+              }
+            ],
+            "url": "{{baseUrl}}/v1/provinces/1/generation-summary",
+            "description": "Expected 200. Use the National Operator login for these IDs."
+          }
+        },
+        {
+          "name": "GET /v1/districts/1/generation-summary - Summary for district 1",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{userToken}}"
+              }
+            ],
+            "url": "{{baseUrl}}/v1/districts/1/generation-summary",
+            "description": "Expected 200. Use the National Operator login for these IDs."
+          }
+        },
+        {
+          "name": "GET /v1/grid-substations/1/generation-summary - Summary for substation 1",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{userToken}}"
+              }
+            ],
+            "url": "{{baseUrl}}/v1/grid-substations/1/generation-summary",
+            "description": "Expected 200. Use the National Operator login for these IDs."
+          }
+        }
+      ]
+    },
+    {
+      "name": "Trends",
+      "item": [
+        {
+          "name": "GET /v1/generation-trend - Trend for the caller jurisdiction",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{userToken}}"
+              }
+            ],
+            "url": "{{baseUrl}}/v1/generation-trend?from={{from}}&to={{to}}&interval=day&page=1&page_size=50&sort=bucket_start",
+            "description": "Expected 200. Use the National Operator login for these IDs."
+          }
+        },
+        {
+          "name": "GET /v1/provinces/1/generation-trend - Trend for province 1",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{userToken}}"
+              }
+            ],
+            "url": "{{baseUrl}}/v1/provinces/1/generation-trend?from={{from}}&to={{to}}&interval=day&page=1&page_size=50&sort=bucket_start",
+            "description": "Expected 200. Use the National Operator login for these IDs."
+          }
+        },
+        {
+          "name": "GET /v1/districts/1/generation-trend - Trend for district 1",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{userToken}}"
+              }
+            ],
+            "url": "{{baseUrl}}/v1/districts/1/generation-trend?from={{from}}&to={{to}}&interval=day&page=1&page_size=50&sort=bucket_start",
+            "description": "Expected 200. Use the National Operator login for these IDs."
+          }
+        },
+        {
+          "name": "GET /v1/grid-substations/1/generation-trend - Trend for substation 1",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{userToken}}"
+              }
+            ],
+            "url": "{{baseUrl}}/v1/grid-substations/1/generation-trend?from={{from}}&to={{to}}&interval=day&page=1&page_size=50&sort=bucket_start",
+            "description": "Expected 200. Use the National Operator login for these IDs."
+          }
+        },
+        {
+          "name": "GET /v1/installations/1/generation-trend - Trend for installation 1",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{userToken}}"
+              }
+            ],
+            "url": "{{baseUrl}}/v1/installations/1/generation-trend?from={{from}}&to={{to}}&interval=day&page=1&page_size=50&sort=bucket_start",
+            "description": "Expected 200. Use the National Operator login for these IDs."
+          }
+        }
+      ]
+    },
+    {
+      "name": "Device ingestion",
+      "item": [
+        {
+          "name": "POST /v1/installations/1/readings - Create a reading for installation 1",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{deviceToken}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/v1/installations/1/readings",
+            "description": "Creates a real reading. First send Latest reading for installation 1; then set the private site-1 deviceToken. Repeated timestamp returns 409. Refresh Latest reading before another POST.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"timestamp\": \"{{newReadingTimestamp}}\",\n  \"power_Kw\": 1,\n  \"cumulative_energy_Kwh\": {{nextCounter}},\n  \"voltage\": 230\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Password changes - run last",
+      "item": [
+        {
+          "name": "PATCH /v1/users/3 - Reset user 3 password",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{userToken}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/v1/users/3",
+            "description": "National login resets Western Province Officer (user 3). To restore the demo password, send this request again with new_password equal to Solar#Demo2026. This revokes that user’s old tokens.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"new_password\": \"{{newPassword}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "PATCH /v1/users/me - Change your own password",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{userToken}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/v1/users/me",
+            "description": "Changes the logged-in user password and revokes userToken. Log in again with the changed password. Recovery instructions are in docs/postman-curl.md.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"current_password\": \"{{password}}\",\n  \"new_password\": \"{{newPassword}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        }
+      ]
+    }
+  ]
+}

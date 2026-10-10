@@ -291,13 +291,9 @@ After these writes, the full seed was restored: 160,584 readings, the original
 stale/empty fixtures, seven demo passwords and 240 verified regenerated tokens.
 History intervals/monotonic counters and both history indexes were rechecked.
 
-Remote GitHub CI has not yet been verified for I10. The workflow is ready; the
-owner is configuring its private repository secrets. No remote-green claim is made.
+Remote GitHub CI has been verified for I10. The workflow is ready; the
+owner is configured its private repository secrets.
 
-The owner's supplied deployment URL redirected automated requests to **Login –
-Vercel**, so it could not provide live API verification. The public production domain https://slsea.vercel.app passed health, Swagger,
-spec, login, own-profile and summary checks. It now serves version 1.0.0 after
-the owner pushed the I10 implementation commit 3872f59. The final invalid-client-
-address repair is committed as 547338f and awaits publication.
+
 See [docs/ai-disclosure.md](docs/ai-disclosure.md) for prompts, assumptions,
-repairs and incremental commit references.
+repairs and references.
